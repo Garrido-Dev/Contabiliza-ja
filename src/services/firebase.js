@@ -9,6 +9,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getAnalytics } from 'firebase/analytics';
+import { getStorage } from 'firebase/storage';
 
 // Configuração do projeto Firebase via variáveis de ambiente (.env)
 const firebaseConfig = {
@@ -27,8 +28,11 @@ const app = initializeApp(firebaseConfig);
 // Instância do Firestore (banco de dados)
 export const db = getFirestore(app);
 
-// Instância do Auth (autenticação - configurado para uso futuro)
+// Instância do Auth (autenticação)
 export const auth = getAuth(app);
+
+// Instância do Storage (arquivos e documentos)
+export const storage = getStorage(app);
 
 export default app;
 

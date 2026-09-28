@@ -39,11 +39,44 @@ const IconLogout = () => (
     <line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
+const IconDocuments = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+const IconCalendar = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/>
+    <line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+const IconSettings = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
 
 const NAV_ITEMS = [
   { to: '/consultorias', label: 'Consultorias', Icon: IconConsultorias },
   { to: '/financeiro',   label: 'Financeiro',   Icon: IconFinanceiro   },
   { to: '/clientes',     label: 'Clientes',     Icon: IconClientes     },
+  { to: '/documentos',   label: 'Documentos',   Icon: IconDocuments    },
+  { to: '/obrigacoes',   label: 'Obrigações',   Icon: IconCalendar     },
+];
+
+const MGMT_ITEMS = [
+  { to: '/configuracoes', label: 'Configurações', Icon: IconSettings, badge: 'Free' },
+];
+
+const MOBILE_NAV = [
+  { to: '/consultorias', label: 'Consultorias', Icon: IconConsultorias },
+  { to: '/financeiro',   label: 'Financeiro',   Icon: IconFinanceiro   },
+  { to: '/clientes',     label: 'Clientes',     Icon: IconClientes     },
+  { to: '/documentos',   label: 'Documentos',   Icon: IconDocuments    },
+  { to: '/obrigacoes',   label: 'Agenda',        Icon: IconCalendar     },
 ];
 
 export default function Layout({ children }) {
@@ -82,7 +115,7 @@ export default function Layout({ children }) {
         </div>
 
         <nav className="sidebar-nav">
-          <p className="nav-label">Menu</p>
+          <p className="nav-label">Menu Principal</p>
           {NAV_ITEMS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
@@ -91,6 +124,25 @@ export default function Layout({ children }) {
             >
               <Icon />
               {label}
+            </NavLink>
+          ))}
+          <p className="nav-label" style={{ marginTop: 20 }}>Gestão</p>
+          {MGMT_ITEMS.map(({ to, label, Icon, badge }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <Icon />
+              {label}
+              {badge && (
+                <span style={{
+                  marginLeft: 'auto', fontSize: 10, fontWeight: 700,
+                  padding: '2px 7px', borderRadius: 99,
+                  background: 'var(--blue-subtle)', color: 'var(--blue)',
+                  letterSpacing: '0.3px',
+                }}>Plano Free</span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -141,7 +193,7 @@ export default function Layout({ children }) {
       {/* ── Bottom Nav (mobile) ────────────────────────────── */}
       <nav className="bottom-nav">
         <div className="bottom-nav-items">
-          {NAV_ITEMS.map(({ to, label, Icon }) => (
+          {MOBILE_NAV.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}

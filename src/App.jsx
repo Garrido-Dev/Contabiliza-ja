@@ -12,6 +12,8 @@ import QuoteForm from './pages/QuoteForm';
 import ClientList from './pages/ClientList';
 import ClientForm from './pages/ClientForm';
 import Financial from './pages/Financial';
+import Documents from './pages/Documents';
+import Obligations from './pages/Obligations';
 import PublicQuote from './pages/PublicQuote';
 
 export default function App() {
@@ -29,6 +31,9 @@ export default function App() {
           <Route path="/clientes/novo" element={<ProtectedRoute><ClientForm /></ProtectedRoute>} />
           
           <Route path="/financeiro" element={<ProtectedRoute><Financial /></ProtectedRoute>} />
+          <Route path="/documentos" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+          <Route path="/obrigacoes" element={<ProtectedRoute><Obligations /></ProtectedRoute>} />
+          <Route path="/configuracoes" element={<ProtectedRoute><div style={{padding:40,color:'var(--text)'}}>⚙️ Configurações — Em breve</div></ProtectedRoute>} />
 
           <Route path="/" element={<Navigate to="/consultorias" replace />} />
           <Route path="*" element={<Navigate to="/consultorias" replace />} />
