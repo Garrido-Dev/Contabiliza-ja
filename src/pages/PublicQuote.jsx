@@ -38,8 +38,35 @@ export default function PublicQuote() {
     <div style={{ minHeight: '100vh', padding: 20, display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 600 }}>
         <div className="card" style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 24, marginBottom: 8, color: 'var(--text)' }}>Contabiliza Já</h1>
-          <p style={{ color: 'var(--text-2)', marginBottom: 24 }}>Proposta de Prestação de Serviços</p>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            marginBottom: 20,
+            paddingBottom: 16,
+            borderBottom: '1px solid var(--border)'
+          }}>
+            <div style={{
+              background: '#ffffff',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              flexShrink: 0
+            }}>
+              <img
+                src="/logo-full.png"
+                alt="Contabiliza Já"
+                style={{ width: '105px', height: 'auto', display: 'block' }}
+              />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 22, margin: 0, color: 'var(--text)', fontWeight: 800 }}>Contabiliza Já</h1>
+              <p style={{ color: 'var(--text-2)', margin: '4px 0 0 0', fontSize: 13 }}>Proposta de Prestação de Serviços Contábeis</p>
+            </div>
+          </div>
           
           <div style={{ background: 'var(--bg-3)', padding: 16, borderRadius: 'var(--radius)', marginBottom: 24 }}>
             <p><strong>Cliente:</strong> {quote.clientName}</p>

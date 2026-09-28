@@ -59,9 +59,26 @@ export default function Layout({ children }) {
     <div className="app-shell">
       {/* ── Sidebar (desktop) ─────────────────────────────── */}
       <aside className="sidebar">
-        <div className="sidebar-logo">
-          <h1>📊 Contabiliza Já</h1>
-          <span>Gestão de Consultorias</span>
+        <div className="sidebar-logo" style={{ padding: '18px 16px', textAlign: 'center' }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            marginBottom: '10px'
+          }}>
+            <img
+              src="/logo-full.png"
+              alt="Contabiliza Já"
+              style={{ width: '135px', height: 'auto', display: 'block' }}
+            />
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500, letterSpacing: '0.3px' }}>
+            Gestão de Consultorias
+          </span>
         </div>
 
         <nav className="sidebar-nav">
@@ -102,6 +119,19 @@ export default function Layout({ children }) {
           </div>
         </div>
       </aside>
+
+      {/* ── Top Bar (mobile) ────────────────────────────────── */}
+      <header className="mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo-icon.png" alt="Contabiliza Já" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+          <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+            Contabiliza Já
+          </span>
+        </div>
+        {user?.photoURL && (
+          <img src={user.photoURL} alt="Avatar" className="user-avatar" style={{ width: 30, height: 30 }} referrerPolicy="no-referrer" />
+        )}
+      </header>
 
       {/* ── Conteúdo principal ─────────────────────────────── */}
       <main className="main-content">

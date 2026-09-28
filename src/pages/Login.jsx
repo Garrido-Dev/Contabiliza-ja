@@ -36,13 +36,25 @@ export default function Login() {
     }}>
       <div style={{ width: '100%', maxWidth: '400px' }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ fontSize: '42px', marginBottom: '12px' }}>📊</div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text)', letterSpacing: '-0.5px', marginBottom: '6px' }}>
-            Contabiliza Já
-          </h1>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '16px 28px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            marginBottom: '16px'
+          }}>
+            <img
+              src="/logo-full.png"
+              alt="Contabiliza Já"
+              style={{ width: '180px', height: 'auto', display: 'block' }}
+            />
+          </div>
           <p style={{ color: 'var(--text-3)', fontSize: '14px' }}>
-            Gestão de Consultorias Contábeis
+            Gestão Estratégica de Consultorias Contábeis
           </p>
         </div>
 

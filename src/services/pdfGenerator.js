@@ -5,7 +5,7 @@
 // ============================================================
 
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // Formata valor em BRL
 function fmt(value) {
@@ -25,23 +25,36 @@ export function generateQuotePDF(quote, client) {
   const margin = 20;
 
   // ── Cores corporativas ────────────────────────────────────
-  const DARK   = [17, 24, 39];     // #111827
-  const BLUE   = [47, 124, 246];   // #2F7CF6
-  const GRAY   = [100, 116, 139];  // texto secundário
-  const LGRAY  = [241, 245, 249];  // fundo linhas da tabela
+  const DARK  = [17, 24, 39];     // #111827
+  const BLUE  = [47, 124, 246];   // #2F7CF6
+  const GRAY  = [100, 116, 139];  // texto secundário
+  const LGRAY = [241, 245, 249];  // fundo linhas da tabela
 
   // ── Cabeçalho ─────────────────────────────────────────────
   doc.setFillColor(...BLUE);
   doc.rect(0, 0, W, 42, 'F');
 
+  let textStartX = margin;
+  try {
+    const logoFullImg = document.querySelector('img[src="/logo-full.png"]') || document.querySelector('img[src="/logo.png"]');
+    if (logoFullImg && logoFullImg.complete) {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(margin, 8, 34, 25, 3, 3, 'F');
+      doc.addImage(logoFullImg, 'PNG', margin + 3, 9.5, 28, 22);
+      textStartX = margin + 40;
+    }
+  } catch (e) {
+    // fallback
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('Contabiliza Já', margin, 18);
+  doc.text('Contabiliza Já', textStartX, 18);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Gestão de Consultorias Contábeis', margin, 26);
+  doc.text('Gestão de Consultorias Contábeis', textStartX, 26);
 
   // Número e status do orçamento
   doc.setFontSize(11);
@@ -135,7 +148,9 @@ export function generateQuotePDF(quote, client) {
   y += 3;
 
   const items = quote.items ?? [];
-  doc.autoTable({
+  
+  // Chamada correta do autoTable passando a instância 'doc'
+  autoTable(doc, {
     startY: y + 4,
     margin: { left: margin, right: margin },
     head: [['#', 'Descrição', 'Qtd', 'Valor Unit.', 'Subtotal']],
@@ -161,14 +176,17 @@ export function generateQuotePDF(quote, client) {
   });
 
   // ── Total ──────────────────────────────────────────────────
-  const afterTable = doc.lastAutoTable.finalY + 8;
+  const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 20;
+  const afterTable = finalY + 8;
+  
   doc.setFillColor(...LGRAY);
   doc.roundedRect(W - margin - 70, afterTable - 4, 70, 14, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
   doc.text('TOTAL:', W - margin - 55, afterTable + 5);
-  doc.setTextColor(...BLUE[0], ...BLUE.slice(1));
+  
+  doc.setTextColor(...BLUE); // Corrigido aqui
   doc.setFontSize(12);
   doc.text(fmt(quote.totalValue), W - margin - 4, afterTable + 5, { align: 'right' });
 

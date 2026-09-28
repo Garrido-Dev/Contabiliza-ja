@@ -10,7 +10,6 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
-// Estilos modernos com glassmorphism para a página pública
 const styles = {
   page: {
     minHeight: '100vh',
@@ -25,7 +24,6 @@ const styles = {
     width: '100%',
     maxWidth: '500px',
   },
-  // Card do orçamento
   card: {
     background: 'rgba(255, 255, 255, 0.07)',
     backdropFilter: 'blur(24px)',
@@ -34,7 +32,6 @@ const styles = {
     padding: '40px',
     boxShadow: '0 30px 60px rgba(0,0,0,0.5)',
   },
-  // Cabeçalho da empresa
   companyHeader: {
     display: 'flex',
     alignItems: 'center',
@@ -66,7 +63,6 @@ const styles = {
     fontSize: '12px',
     margin: 0,
   },
-  // Badge de status
   statusBadge: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -79,7 +75,6 @@ const styles = {
     textTransform: 'uppercase',
     marginBottom: '24px',
   },
-  // Título de saudação ao cliente
   greeting: {
     color: '#ffffff',
     fontSize: '22px',
@@ -92,7 +87,6 @@ const styles = {
     fontSize: '13px',
     margin: '0 0 28px',
   },
-  // Seção de item do orçamento
   itemCard: {
     background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.08)',
@@ -115,7 +109,6 @@ const styles = {
     lineHeight: '1.6',
     whiteSpace: 'pre-wrap',
   },
-  // Seção de valor total
   totalSection: {
     background: 'linear-gradient(135deg, rgba(108,99,255,0.2), rgba(168,85,247,0.2))',
     border: '1px solid rgba(108,99,255,0.3)',
@@ -137,7 +130,6 @@ const styles = {
     fontWeight: '800',
     letterSpacing: '-0.5px',
   },
-  // Botão de aprovação WhatsApp
   approveBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -157,10 +149,9 @@ const styles = {
     boxSizing: 'border-box',
     letterSpacing: '0.3px',
   },
-  // Estado de carregamento
-  loadingWrap: {
-    textAlign: 'center',
-    padding: '60px 20px',
+  loadingText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: '14px',
   },
   spinner: {
     width: '44px',
@@ -171,11 +162,6 @@ const styles = {
     margin: '0 auto 16px',
     animation: 'spin 0.8s linear infinite',
   },
-  loadingText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: '14px',
-  },
-  // Estado de erro
   errorWrap: {
     textAlign: 'center',
     padding: '60px 20px',
@@ -195,7 +181,6 @@ const styles = {
     color: 'rgba(255,255,255,0.45)',
     fontSize: '14px',
   },
-  // Rodapé
   footer: {
     textAlign: 'center',
     marginTop: '20px',
@@ -204,7 +189,6 @@ const styles = {
   },
 };
 
-// Define as cores do badge de acordo com o status do orçamento
 function getStatusStyle(status) {
   const map = {
     pendente: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', icon: '⏳' },
@@ -214,14 +198,12 @@ function getStatusStyle(status) {
   return map[status] || map['pendente'];
 }
 
-// Formata o valor como moeda brasileira
 function formatCurrency(value) {
   const num = parseFloat(value);
   if (isNaN(num)) return 'R$ 0,00';
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// Formata a data do Firestore Timestamp para string legível
 function formatDate(timestamp) {
   if (!timestamp) return 'Data indisponível';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -231,17 +213,13 @@ function formatDate(timestamp) {
 }
 
 export default function PublicQuote() {
-  // Pega o :id da URL usando o hook do React Router
   const { id } = useParams();
 
-  // Estados locais para controlar o carregamento, erro e dados do orçamento
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Busca o orçamento no Firestore quando o componente monta
   useEffect(() => {
-    // Garante que temos um ID antes de fazer a query
     if (!id) {
       setError('ID do orçamento inválido.');
       setLoading(false);
@@ -250,15 +228,12 @@ export default function PublicQuote() {
 
     async function fetchQuote() {
       try {
-        // Cria a referência ao documento na coleção 'quotes' pelo ID
         const docRef = doc(db, 'quotes', id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          // Documento encontrado: salva os dados no estado
           setQuote({ id: docSnap.id, ...docSnap.data() });
         } else {
-          // Documento não encontrado no Firestore
           setError('Orçamento não encontrado. Verifique o link e tente novamente.');
         }
       } catch (err) {
@@ -270,24 +245,37 @@ export default function PublicQuote() {
     }
 
     fetchQuote();
-  }, [id]); // Reexecuta se o ID mudar
+  }, [id]);
 
-  // Monta a mensagem de aprovação para o WhatsApp da empresa
+  // Monta a mensagem estruturada de aprovação para enviar à empresa
   function buildApprovalUrl() {
     if (!quote) return '#';
+
+    // Trata número do WhatsApp garantindo DDI correto
+    let phone = (quote.whatsapp || quote.companyWhatsapp || '').replace(/\D/g, '');
+    if (phone.length === 10 || phone.length === 11) {
+      phone = `55${phone}`;
+    }
+
+    // Suporte tanto para quote.description/value quanto quote.type/totalValue
+    const serviceType = quote.type || quote.description || 'Serviço Prestado';
+    const totalVal = formatCurrency(quote.totalValue ?? quote.value);
+    const shortId = id.substring(0, 8).toUpperCase();
+
     const message =
-      `Olá! Gostaria de *APROVAR* o orçamento referente ao serviço:\n\n` +
-      `📋 *${quote.description}*\n` +
-      `💰 *Valor:* ${formatCurrency(quote.value)}\n\n` +
-      `Pode prosseguir! 👍`;
-    return `https://wa.me/55${quote.whatsapp}?text=${encodeURIComponent(message)}`;
+      `Olá! Sou *${quote.clientName || 'Cliente'}* e gostaria de *APROVAR* o orçamento Nº *#${shortId}*.\n\n` +
+      `📋 *Serviço:* ${serviceType}\n` +
+      `💰 *Valor Total:* ${totalVal}\n\n` +
+      `Podemos dar início aos trabalhos? 👍`;
+
+    return phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
   }
 
-  // ── Estado: Carregando ──────────────────────────────────────
   if (loading) {
     return (
       <div style={styles.page}>
-        {/* Keyframe de animação via <style> tag injetada */}
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         <div style={styles.container}>
           <div style={{ ...styles.card, textAlign: 'center', padding: '60px 40px' }}>
@@ -299,7 +287,6 @@ export default function PublicQuote() {
     );
   }
 
-  // ── Estado: Erro ou não encontrado ─────────────────────────
   if (error) {
     return (
       <div style={styles.page}>
@@ -317,14 +304,15 @@ export default function PublicQuote() {
     );
   }
 
-  // ── Estado: Orçamento carregado com sucesso ─────────────────
   const statusStyle = getStatusStyle(quote.status);
+  const displayDescription = quote.description || quote.type || 'Serviço Solicitado';
+  const displayValue = quote.totalValue ?? quote.value;
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
         <div style={styles.card}>
-          {/* Cabeçalho com branding da empresa */}
+          {/* Cabeçalho */}
           <div style={styles.companyHeader}>
             <div style={styles.logoCircle}>📊</div>
             <div>
@@ -333,35 +321,35 @@ export default function PublicQuote() {
             </div>
           </div>
 
-          {/* Badge de status do orçamento */}
+          {/* Badge */}
           <div style={{
             ...styles.statusBadge,
             background: statusStyle.bg,
             color: statusStyle.color,
             border: statusStyle.border,
           }}>
-            {statusStyle.icon} {quote.status}
+            {statusStyle.icon} {quote.status || 'Pendente'}
           </div>
 
-          {/* Saudação personalizada com nome do cliente */}
-          <h1 style={styles.greeting}>Olá, {quote.clientName}! 👋</h1>
+          {/* Saudação */}
+          <h1 style={styles.greeting}>Olá, {quote.clientName || 'Cliente'}! 👋</h1>
           <p style={styles.greetingSubtitle}>
             Orçamento gerado em {formatDate(quote.createdAt)}
           </p>
 
-          {/* Detalhes do serviço */}
+          {/* Descrição */}
           <div style={styles.itemCard}>
             <span style={styles.itemLabel}>📋 Descrição do Serviço</span>
-            <p style={{ ...styles.itemValue, margin: 0 }}>{quote.description}</p>
+            <p style={{ ...styles.itemValue, margin: 0 }}>{displayDescription}</p>
           </div>
 
-          {/* Valor total com destaque visual */}
+          {/* Total */}
           <div style={styles.totalSection}>
             <span style={styles.totalLabel}>💰 Valor Total</span>
-            <span style={styles.totalValue}>{formatCurrency(quote.value)}</span>
+            <span style={styles.totalValue}>{formatCurrency(displayValue)}</span>
           </div>
 
-          {/* Botão principal de aprovação via WhatsApp */}
+          {/* Botão de aprovação */}
           <a
             href={buildApprovalUrl()}
             target="_blank"
@@ -370,7 +358,6 @@ export default function PublicQuote() {
             onMouseOver={(e) => (e.currentTarget.style.opacity = '0.85')}
             onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            {/* Ícone WhatsApp SVG inline */}
             <svg width="22" height="22" viewBox="0 0 24 24" fill="#ffffff">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
             </svg>
@@ -380,7 +367,7 @@ export default function PublicQuote() {
 
         {/* Rodapé */}
         <p style={styles.footer}>
-          Orçamento #{id.substring(0, 8).toUpperCase()} • Contabiliza Já
+          Orçamento #{id ? id.substring(0, 8).toUpperCase() : ''} • Contabiliza Já
         </p>
       </div>
     </div>

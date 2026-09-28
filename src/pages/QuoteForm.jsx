@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   collection, addDoc, serverTimestamp, getDocs, query, where,
 } from 'firebase/firestore';
@@ -53,12 +53,13 @@ const EMPTY_ITEM = { description: '', qty: 1, unitPrice: '' };
 export default function QuoteForm() {
   const { user } = useAuth();
   const navigate  = useNavigate();
+  const location  = useLocation();
 
   // ── Estado do formulário ───────────────────────────────────
   const [form, setForm] = useState({
-    clientId:     '',
-    clientName:   '',
-    whatsapp:     '',
+    clientId:     location.state?.clientId || '',
+    clientName:   location.state?.clientName || '',
+    whatsapp:     location.state?.whatsapp || '',
     type:         '',
     description:  '',
     deadline:     '',
