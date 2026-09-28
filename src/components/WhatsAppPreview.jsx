@@ -16,20 +16,26 @@ function buildMessage(quote) {
   const origin = window.location.origin;
   const publicUrl = `${origin}/orcamento/${quote.id}`;
 
-  const itemsText = (quote.items ?? [])
-    .map(it => `  • ${it.description} (${it.qty}x ${fmt(it.unitPrice)})`)
-    .join('\n');
+  // Total: prefere totalValue, depois value, depois soma dos itens
+  const totalRaw = quote.totalValue ?? quote.value ?? ((quote.items ?? []).length ? (quote.items ?? []).reduce((s, it) => s + ((it.qty || 0) * (it.unitPrice || 0)), 0) : 0);
+  const totalFmt = Number(totalRaw || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const service = quote.type ?? quote.description ?? 'Serviço';
+
+  const itemsArray = quote.items ?? [];
+  const itemsText = itemsArray.length
+    ? itemsArray.map(it => `  • ${it.description} (${it.qty}x ${fmt(it.unitPrice)})`).join('\n')
+    : (quote.description ? `  • ${quote.description}` : '');
 
   return (
-    `Olá, *${quote.clientName}*! 👋\n\n` +
-    `Segue o orçamento referente ao serviço:\n` +
-    `📋 *${quote.type}*\n\n` +
-    `*Itens:*\n${itemsText}\n\n` +
-    `💰 *Total: ${fmt(quote.totalValue)}*\n` +
+    `Olá, ${quote.clientName ?? 'Cliente'}! 👋\n\n` +
+    `Envio o orçamento para *${service}*.\n\n` +
+    (itemsText ? `*Itens:*\n${itemsText}\n\n` : '') +
+    `💰 *Total: ${totalFmt}*\n` +
     (quote.paymentTerms ? `💳 Pagamento: ${quote.paymentTerms}\n` : '') +
     (quote.deadline ? `📅 Prazo: ${new Date(quote.deadline + 'T12:00:00').toLocaleDateString('pt-BR')}\n` : '') +
-    `\nAcesse e aprove seu orçamento:\n${publicUrl}\n\n` +
-    `Qualquer dúvida, estou à disposição! 😊`
+    `\nAcesse o orçamento aqui:\n${publicUrl}\n\n` +
+    `Se preferir, posso enviar em PDF também. Qualquer dúvida, estou à disposição! 😊`
   );
 }
 

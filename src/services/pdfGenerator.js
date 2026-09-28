@@ -161,16 +161,20 @@ export function generateQuotePDF(quote, client) {
   });
 
   // ── Total ──────────────────────────────────────────────────
-  const afterTable = doc.lastAutoTable.finalY + 8;
+  // Protege caso a tabela não tenha sido gerada corretamente
+  const lastTableY = doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 20;
+  const afterTable = lastTableY + 8;
   doc.setFillColor(...LGRAY);
   doc.roundedRect(W - margin - 70, afterTable - 4, 70, 14, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
   doc.text('TOTAL:', W - margin - 55, afterTable + 5);
-  doc.setTextColor(...BLUE[0], ...BLUE.slice(1));
+  // Calcula total com fallbacks (totalValue, value ou soma dos itens)
+  const computedTotal = quote.totalValue ?? quote.value ?? (items.length ? items.reduce((s, it) => s + ((it.qty || 0) * (it.unitPrice || 0)), 0) : 0);
+  doc.setTextColor(...BLUE);
   doc.setFontSize(12);
-  doc.text(fmt(quote.totalValue), W - margin - 4, afterTable + 5, { align: 'right' });
+  doc.text(fmt(computedTotal), W - margin - 4, afterTable + 5, { align: 'right' });
 
   // ── Observações ────────────────────────────────────────────
   if (quote.description) {
