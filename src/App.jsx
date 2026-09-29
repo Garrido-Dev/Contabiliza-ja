@@ -2,7 +2,7 @@
 // src/App.jsx
 // ============================================================
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
@@ -19,7 +19,7 @@ import PublicQuote from './pages/PublicQuote';
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/orcamento/:id" element={<PublicQuote />} />
@@ -38,7 +38,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/consultorias" replace />} />
           <Route path="*" element={<Navigate to="/consultorias" replace />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   );
 }
