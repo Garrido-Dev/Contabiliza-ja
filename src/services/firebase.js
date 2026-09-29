@@ -13,13 +13,13 @@ import { getStorage } from 'firebase/storage';
 
 // Configuração do projeto Firebase via variáveis de ambiente (.env)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyDoZl82pG0R9RUM4OidoQv_MUrKDdBrn9Y",
+  authDomain: "contabiliza-ja.firebaseapp.com",
+  projectId: "contabiliza-ja",
+  storageBucket: "contabiliza-ja.firebasestorage.app",
+  messagingSenderId: "812266285491",
+  appId: "1:812266285491:web:1c306b12ddbd6dd6b0c3c6",
+  measurementId: "G-K48M2CCLR2"
 };
 
 // Inicializa o App do Firebase
