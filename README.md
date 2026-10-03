@@ -8,7 +8,7 @@ O **Contabiliza Já** resolve a desorganização de controlar orçamentos, entre
 
 ## 🔗 Demonstração & Acesso
 
-🔗 **Acesse a aplicação em produção:** [https://seu-link-aqui.vercel.app](https://seu-link-aqui.vercel.app)
+🔗 **Acesse a aplicação em produção:** [GitHub](https://garrido-dev.github.io/Contabiliza-ja/)
 
 ### Capturas de Tela
 
