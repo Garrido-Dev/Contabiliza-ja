@@ -7,6 +7,8 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { generateQuotePDF } from '../services/pdfGenerator';
+import imglogo from "../assets/logo.contabilizaJa-branco.png"
+
 
 function fmt(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -57,7 +59,7 @@ export default function PublicQuote() {
               flexShrink: 0
             }}>
               <img
-                src="/logo-full.png"
+                src={imglogo}
                 alt="Contabiliza Já"
                 style={{ width: '105px', height: 'auto', display: 'block' }}
               />

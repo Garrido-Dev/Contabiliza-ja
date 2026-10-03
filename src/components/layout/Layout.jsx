@@ -7,6 +7,7 @@
 
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import imglogo from '../../assets/logo.contabilizaJa-branco.png'
 
 // ── Ícones SVG inline ──────────────────────────────────────
 const IconConsultorias = () => (
@@ -94,17 +95,17 @@ export default function Layout({ children }) {
       <aside className="sidebar">
         <div className="sidebar-logo" style={{ padding: '18px 16px', textAlign: 'center' }}>
           <div style={{
-            background: '#ffffff',
-            borderRadius: '12px',
-            padding: '10px 14px',
+            // background: '#ffffff',
+            // borderRadius: '12px',
+            // padding: '10px 14px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            // boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
             marginBottom: '10px'
           }}>
             <img
-              src="/logo-full.png"
+              src={imglogo}
               alt="Contabiliza Já"
               style={{ width: '135px', height: 'auto', display: 'block' }}
             />
@@ -175,7 +176,7 @@ export default function Layout({ children }) {
       {/* ── Top Bar (mobile) ────────────────────────────────── */}
       <header className="mobile-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo-icon.png" alt="Contabiliza Já" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+          <img src={imglogo} alt="Contabiliza Já" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', letterSpacing: '-0.3px' }}>
             Contabiliza Já
           </span>
