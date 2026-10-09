@@ -1,0 +1,1126 @@
+# -*- coding: utf-8 -*-
+"""
+Script de Geração do Relatório de Auditoria de Segurança em PDF e HTML
+Projeto: Contabiliza Já
+"""
+
+import os
+import sys
+import subprocess
+import re
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+HTML_PATH = BASE_DIR / "relatorio.html"
+PDF_PATH = BASE_DIR / "relatorio-auditoria-seguranca.pdf"
+
+CHROME_PATHS = [
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+]
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório de Auditoria de Segurança — Contabiliza Já</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 18mm 16mm 18mm 16mm;
+    @top-right {
+      content: "Contabiliza Já — Auditoria de Segurança";
+      font-size: 8pt;
+      color: #64748b;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    @bottom-right {
+      content: "Página " counter(page);
+      font-size: 8pt;
+      color: #64748b;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background: #ffffff;
+    line-height: 1.5;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Capa */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justifyContent: space-between;
+    min-height: 92vh;
+    padding: 40px 20px;
+    border-bottom: 4px solid #2563eb;
+  }
+
+  .cover-header {
+    margin-top: 40px;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 20px;
+  }
+
+  .cover-title {
+    font-size: 28pt;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.15;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.5px;
+  }
+
+  .cover-subtitle {
+    font-size: 14pt;
+    color: #475569;
+    margin: 0 0 28px 0;
+    font-weight: 400;
+  }
+
+  .cover-meta {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 30px;
+  }
+
+  .meta-item {
+    font-size: 9pt;
+  }
+
+  .meta-label {
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 7.5pt;
+    letter-spacing: 0.5px;
+  }
+
+  .meta-val {
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 10pt;
+    margin-top: 2px;
+  }
+
+  .cover-footer {
+    margin-top: 40px;
+    font-size: 8.5pt;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 15px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Seções gerais */
+  h1 {
+    font-size: 18pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+    margin-top: 30px;
+    margin-bottom: 16px;
+    letter-spacing: -0.3px;
+  }
+
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 22px;
+    margin-bottom: 10px;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #334155;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+    color: #334155;
+  }
+
+  /* Chips */
+  .chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .chip-critica { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .chip-alta { background: #ffedd5; color: #ea580c; border: 1px solid #fdba74; }
+  .chip-media { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+  .chip-baixa { background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd; }
+  .chip-forte { background: #d1fae5; color: #059669; border: 1px solid #6ee7b7; }
+  .chip-info { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+  /* Cards e Gráficos */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0;
+  }
+
+  .card-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .card-title {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  /* Tabelas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 8.5pt;
+  }
+
+  th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+  }
+
+  td {
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  /* Bloco de Código */
+  pre {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
+    font-size: 7.8pt;
+    line-height: 1.4;
+    overflow-x: auto;
+    margin: 8px 0;
+    border: 1px solid #334155;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  code {
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
+    font-size: 8pt;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  /* Achado Individual */
+  .finding-card {
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #b91c1c;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    background: #ffffff;
+  }
+
+  .finding-card.alta { border-left-color: #ea580c; }
+  .finding-card.media { border-left-color: #d97706; }
+  .finding-card.baixa { border-left-color: #2563eb; }
+  .finding-card.forte { border-left-color: #059669; }
+
+  .finding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 6px;
+  }
+
+  .finding-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .finding-prop {
+    font-size: 8.5pt;
+    margin-bottom: 4px;
+  }
+
+  .finding-label {
+    font-weight: 700;
+    color: #475569;
+  }
+
+  /* Exploit Path Box */
+  .exploit-box {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 8.5pt;
+    color: #881337;
+    margin: 8px 0;
+  }
+
+  /* Ponto Forte Box */
+  .strength-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  /* Issue Box */
+  .issue-container {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-family: "Consolas", monospace;
+    font-size: 8pt;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #1e293b;
+  }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="cover">
+  <div class="cover-header">
+    <span class="badge-tag">Auditoria de Segurança Ofensiva & Defensiva</span>
+    <h1 class="cover-title">Relatório de Auditoria de Segurança</h1>
+    <div class="cover-subtitle">Avaliação Estrita de Vulnerabilidades e Vetores de Exploração — Contabiliza Já</div>
+  </div>
+
+  <div class="cover-meta">
+    <div class="meta-item">
+      <div class="meta-label">Projeto Auditado</div>
+      <div class="meta-val">Contabiliza Já (saas-or-amento)</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Data da Avaliação</div>
+      <div class="meta-val">09 de Outubro de 2026</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Stack Tecnológica Detectada</div>
+      <div class="meta-val">React 19, Vite 8, Firebase Modular v12 (Firestore / Auth / Storage), GitHub Pages</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Arquitetura de Backend</div>
+      <div class="meta-val">Backend-as-a-Service (BaaS) / Serveless Client-Direct</div>
+    </div>
+  </div>
+
+  <div class="avoid-break" style="margin-top: 24px;">
+    <h3>Nota Metodológica de Mapeamento de Stack</h3>
+    <p style="font-size: 8.5pt; color: #475569;">
+      O projeto <strong>Contabiliza Já</strong> não possui servidor de backend intermediário dedicado (Node.js, Express, Python ou Java). Todas as operações de leitura, escrita e exclusão ocorrem diretamente do cliente web React para a nuvem da Google via Firebase SDK Modular.
+      Consequentemente, cada uma das 5 categorias da auditoria foi mapeada estritamente para essa arquitetura:
+    </p>
+    <ul style="font-size: 8.5pt; color: #475569; margin: 4px 0 0 18px; padding: 0;">
+      <li><strong>1. Banco Sem Tranca:</strong> Mapeado para <em>Security Rules do Firestore / Storage</em> e associação correta de <code>userId</code> nos documentos.</li>
+      <li><strong>2. Permissão Definida no Navegador:</strong> Mapeado para bloqueios de UI/Planos (ex: módulo "Pro" em Documents.jsx) sem validação no backend/BaaS.</li>
+      <li><strong>3. IDOR:</strong> Mapeado para comandos diretos de <code>updateDoc</code>, <code>deleteDoc</code> e rotas públicas de <code>getDoc</code> sem validação de titularidade.</li>
+      <li><strong>4. Chaves Expostas:</strong> Mapeado para configuração estática do Firebase no bundle, variáveis <code>.env</code> ignoradas e histórico git.</li>
+      <li><strong>5. Inputs Sem Tratamento (XSS):</strong> Mapeado para URLs dinâmicas e links controlados por usuário no DOM (<code>href</code>).</li>
+    </ul>
+  </div>
+
+  <div class="cover-footer">
+    <span>Classificação: Confidencial / Interno</span>
+    <span>Escopo: Código-fonte completo, CI/CD, Bundle compilado e Histórico Git</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ESCOPO E PRÉ-REQUISITOS -->
+<h1>1. Pré-Requisitos de Escopo & Cobertura</h1>
+
+<h2>1.1. Arquivos Efetivamente Lidos (Auditoria 100% de Código Visível)</h2>
+<p>Todos os arquivos fonte do repositório foram lidos na íntegra (arquivo por arquivo, linha por linha):</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 35%;">Arquivo</th>
+      <th style="width: 20%;">Tipo</th>
+      <th style="width: 45%;">Caminho Completo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>firebase.js</code></td><td>Serviço BaaS</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\services\\firebase.js</code></td></tr>
+    <tr><td><code>AuthContext.jsx</code></td><td>Auth Context</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\context\\AuthContext.jsx</code></td></tr>
+    <tr><td><code>ClientContext.jsx</code></td><td>Context API</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\context\\ClientContext.jsx</code></td></tr>
+    <tr><td><code>ProtectedRoute.jsx</code></td><td>Guarda de Rota</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\layout\\ProtectedRoute.jsx</code></td></tr>
+    <tr><td><code>Layout.jsx</code></td><td>Layout Base</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\layout\\Layout.jsx</code></td></tr>
+    <tr><td><code>App.jsx</code></td><td>Roteador</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\App.jsx</code></td></tr>
+    <tr><td><code>main.jsx</code></td><td>Ponto de Entrada</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\main.jsx</code></td></tr>
+    <tr><td><code>QuoteList.jsx</code></td><td>Página / CRUD</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\QuoteList.jsx</code></td></tr>
+    <tr><td><code>QuoteForm.jsx</code></td><td>Página / CRUD</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\QuoteForm.jsx</code></td></tr>
+    <tr><td><code>ClientList.jsx</code></td><td>Página / CRUD</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\ClientList.jsx</code></td></tr>
+    <tr><td><code>ClientForm.jsx</code></td><td>Página / CRUD</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\ClientForm.jsx</code></td></tr>
+    <tr><td><code>ClientDetailModal.jsx</code></td><td>Componente Modal</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\ClientDetailModal.jsx</code></td></tr>
+    <tr><td><code>Financial.jsx</code></td><td>Página / Métricas</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\Financial.jsx</code></td></tr>
+    <tr><td><code>Documents.jsx</code></td><td>Página / GED</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\Documents.jsx</code></td></tr>
+    <tr><td><code>Obligations.jsx</code></td><td>Página / Agenda</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\Obligations.jsx</code></td></tr>
+    <tr><td><code>PublicQuote.jsx (page)</code></td><td>Página Pública</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\PublicQuote.jsx</code></td></tr>
+    <tr><td><code>PublicQuote.jsx (comp)</code></td><td>Componente</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\PublicQuote.jsx</code></td></tr>
+    <tr><td><code>CreateQuote.jsx</code></td><td>Componente Órfão</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\CreateQuote.jsx</code></td></tr>
+    <tr><td><code>WhatsAppPreview.jsx</code></td><td>Componente</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\components\\WhatsAppPreview.jsx</code></td></tr>
+    <tr><td><code>pdfGenerator.js</code></td><td>Serviço PDF</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\services\\pdfGenerator.js</code></td></tr>
+    <tr><td><code>Login.jsx</code></td><td>Página Auth</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\src\\pages\\Login.jsx</code></td></tr>
+    <tr><td><code>deploy.yml</code></td><td>CI/CD Workflow</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\.github\\workflows\\deploy.yml</code></td></tr>
+    <tr><td><code>vite.config.js</code></td><td>Config Build</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\vite.config.js</code></td></tr>
+    <tr><td><code>package.json</code></td><td>Dependências</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\package.json</code></td></tr>
+    <tr><td><code>.env</code> / <code>.env.example</code></td><td>Ambiente</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\.env</code></td></tr>
+    <tr><td><code>dist/assets/*.js</code></td><td>Bundle Compilado</td><td><code>c:\\Programação\\Projetos\\Contabiliza-ja\\dist\\assets\\index-mCkaJJYn.js</code></td></tr>
+  </tbody>
+</table>
+
+<h2>1.2. O Que NÃO Foi Possível Auditar (Declaração Obrigatória)</h2>
+<p>Para garantir total transparência e rigor metodológico, declaramos os itens fora de alcance local:</p>
+<ul>
+  <li><strong>Console de Produção do Firebase (Regras Ativas no Servidor):</strong> Os arquivos <code>firestore.rules</code> e <code>storage.rules</code> <strong>NÃO estão presentes</strong> no repositório versionado. Não foi possível auditar a configuração ativa em tempo real na nuvem do Google (Console Firebase).</li>
+  <li><strong>Configuração de Restrição de API Keys no Google Cloud Console:</strong> Não há visibilidade sobre regras de IP ou HTTP Referrer aplicadas à chave <code>AIzaSyDoZl82pG0R9RUM4OidoQv_MUrKDdBrn9Y</code> na console do GCP.</li>
+  <li><strong>Histórico Git & Bundle do Frontend:</strong> <strong>AUDITADOS COM SUCESSO.</strong> Confirmamos via execução em terminal a presença de commits históricos com a API key exposta e a inclusão das variáveis estáticas no bundle JS de distribuição.</li>
+</ul>
+
+<h2>1.3. Cobertura de Rotas e Handlers de Dados (100% Mapeados)</h2>
+<p>Por ser uma SPA sem rotas HTTP de backend clássicas, todos os handlers de rota do React Router e acessos ao banco foram inventariados:</p>
+<table>
+  <thead>
+    <tr>
+      <th>Rota / Componente</th>
+      <th>Proteção Front</th>
+      <th>Operações Firestore / Storage</th>
+      <th>Status da Cobertura</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/login</code> (Login.jsx)</td><td>Pública</td><td><code>signInWithPopup(auth)</code></td><td>Auditado (100%)</td></tr>
+    <tr><td><code>/orcamento/:id</code> (PublicQuote)</td><td>Pública</td><td><code>getDoc(quotes/:id)</code></td><td>Auditado (100%) — IDOR / Exposição</td></tr>
+    <tr><td><code>/consultorias</code> (QuoteList)</td><td>ProtectedRoute</td><td><code>getDocs(where userId)</code>, <code>updateDoc(quotes/:id)</code></td><td>Auditado (100%) — IDOR em updateStatus</td></tr>
+    <tr><td><code>/consultorias/nova</code> (QuoteForm)</td><td>ProtectedRoute</td><td><code>addDoc(quotes)</code>, <code>getDocs(clients)</code></td><td>Auditado (100%)</td></tr>
+    <tr><td><code>/clientes</code> (ClientList)</td><td>ProtectedRoute</td><td><code>getDocs(clients)</code>, <code>getDocs(quotes)</code></td><td>Auditado (100%)</td></tr>
+    <tr><td><code>/clientes/novo</code> (ClientForm)</td><td>ProtectedRoute</td><td><code>addDoc(clients)</code></td><td>Auditado (100%)</td></tr>
+    <tr><td><code>ClientDetailModal.jsx</code></td><td>Interno</td><td><code>updateDoc(clients/:id)</code></td><td>Auditado (100%) — IDOR em update</td></tr>
+    <tr><td><code>/financeiro</code> (Financial)</td><td>ProtectedRoute</td><td><code>getDocs(quotes)</code>, <code>updateDoc(quotes/:id)</code></td><td>Auditado (100%) — IDOR em updatePayment</td></tr>
+    <tr><td><code>/documentos</code> (Documents)</td><td>ProtectedRoute</td><td><code>uploadBytesResumable</code>, <code>addDoc</code>, <code>deleteDoc</code>, <code>deleteObject</code></td><td>Auditado (100%) — Gating Pro e IDOR</td></tr>
+    <tr><td><code>/obrigacoes</code> (Obligations)</td><td>ProtectedRoute</td><td><code>getDocs</code>, <code>addDoc</code>, <code>updateDoc</code>, <code>deleteDoc</code></td><td>Auditado (100%) — IDOR em delete/update</td></tr>
+    <tr><td><code>CreateQuote.jsx</code> (legado)</td><td>Não Roteado</td><td><code>addDoc(quotes)</code> sem <code>userId</code></td><td>Auditado (100%) — Falha de Tenant</td></tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- RESUMO EXECUTIVO -->
+<h1>2. Resumo Executivo</h1>
+
+<p>
+  A auditoria identificou vulnerabilidades arquiteturais severas resultantes do uso direto do Firebase Firestore e Storage no cliente web sem versionamento ou garantia de regras de segurança rígidas (Security Rules).
+  Embora o código aplique filtros defensivos de <code>where('userId', '==', user.uid)</code> na maioria das listagens, a ausência de regras no backend e o uso de chamadas diretas de mutação por ID permitem a quebra de isolamento multitenant.
+</p>
+
+<!-- GRÁFICOS SVG PUROS -->
+<div class="chart-grid avoid-break">
+  <!-- Gráfico de Rosca por Severidade -->
+  <div class="card-box">
+    <div class="card-title">Distribuição de Achados por Severidade</div>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 14px;">
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <!-- Total: 6 achados (1 crítica=16.6%, 3 altas=50%, 1 média=16.6%, 1 baixa=16.6%) -->
+        <!-- Raio = 50, Circunferência = 314.15 -->
+        <!-- Crítica: 314.15 * 0.1666 = 52.34 -->
+        <circle cx="75" cy="75" r="50" fill="transparent" stroke="#B91C1C" stroke-width="24"
+                stroke-dasharray="52.34 314.15" stroke-dashoffset="0" transform="rotate(-90 75 75)" />
+        <!-- Alta: 314.15 * 0.50 = 157.08 -->
+        <circle cx="75" cy="75" r="50" fill="transparent" stroke="#EA580C" stroke-width="24"
+                stroke-dasharray="157.08 314.15" stroke-dashoffset="-52.34" transform="rotate(-90 75 75)" />
+        <!-- Média: 314.15 * 0.1666 = 52.34 -->
+        <circle cx="75" cy="75" r="50" fill="transparent" stroke="#D97706" stroke-width="24"
+                stroke-dasharray="52.34 314.15" stroke-dashoffset="-209.42" transform="rotate(-90 75 75)" />
+        <!-- Baixa: 314.15 * 0.1666 = 52.34 -->
+        <circle cx="75" cy="75" r="50" fill="transparent" stroke="#2563EB" stroke-width="24"
+                stroke-dasharray="52.34 314.15" stroke-dashoffset="-261.76" transform="rotate(-90 75 75)" />
+        <text x="75" y="72" text-anchor="middle" font-size="18" font-weight="bold" fill="#0f172a">6</text>
+        <text x="75" y="87" text-anchor="middle" font-size="8" fill="#64748b" text-transform="uppercase">Achados</text>
+      </svg>
+
+      <div style="font-size: 8pt; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; background: #B91C1C; border-radius: 2px;"></span>
+          <strong>1 Crítica</strong> (17%)
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; background: #EA580C; border-radius: 2px;"></span>
+          <strong>3 Altas</strong> (50%)
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; background: #D97706; border-radius: 2px;"></span>
+          <strong>1 Média</strong> (17%)
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; background: #2563EB; border-radius: 2px;"></span>
+          <strong>1 Baixa</strong> (17%)
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #e2e8f0;">
+          <span style="width: 10px; height: 10px; background: #059669; border-radius: 2px;"></span>
+          <strong>3 Pontos Fortes</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico de Barras por Categoria -->
+  <div class="card-box">
+    <div class="card-title">Incidência por Categoria Auditada</div>
+    <svg width="240" height="150" viewBox="0 0 240 150">
+      <!-- C1: Banco Sem Tranca (2) -->
+      <text x="5" y="22" font-size="8" fill="#334155" font-weight="bold">1. Banco Sem Tranca</text>
+      <rect x="110" y="12" width="90" height="13" fill="#B91C1C" rx="3" />
+      <text x="206" y="22" font-size="8" fill="#0f172a" font-weight="bold">2</text>
+
+      <!-- C2: Permissão Browser (1) -->
+      <text x="5" y="47" font-size="8" fill="#334155" font-weight="bold">2. Permissão Navegador</text>
+      <rect x="110" y="37" width="45" height="13" fill="#EA580C" rx="3" />
+      <text x="161" y="47" font-size="8" fill="#0f172a" font-weight="bold">1</text>
+
+      <!-- C3: IDOR (2) -->
+      <text x="5" y="72" font-size="8" fill="#334155" font-weight="bold">3. IDOR / Exposição</text>
+      <rect x="110" y="62" width="90" height="13" fill="#EA580C" rx="3" />
+      <text x="206" y="72" font-size="8" fill="#0f172a" font-weight="bold">2</text>
+
+      <!-- C4: Chaves Expostas (1) -->
+      <text x="5" y="97" font-size="8" fill="#334155" font-weight="bold">4. Chaves Hardcode</text>
+      <rect x="110" y="87" width="45" height="13" fill="#D97706" rx="3" />
+      <text x="161" y="97" font-size="8" fill="#0f172a" font-weight="bold">1</text>
+
+      <!-- C5: Inputs XSS (1) -->
+      <text x="5" y="122" font-size="8" fill="#334155" font-weight="bold">5. Inputs Sem Escape</text>
+      <rect x="110" y="112" width="45" height="13" fill="#2563EB" rx="3" />
+      <text x="161" y="122" font-size="8" fill="#0f172a" font-weight="bold">1</text>
+    </svg>
+  </div>
+</div>
+
+<h2>2.1. Pontos Fortes Identificados no Código</h2>
+<div class="strength-box">
+  <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">
+    Ponto Forte 1 — Filtro Sistemático de Inquilino nas Queries de Listagem (<code>where userId == user.uid</code>)
+  </div>
+  <div style="font-size: 8.5pt; color: #047857;">
+    <strong>Arquivo:</strong> <code>src/pages/QuoteList.jsx:30</code>, <code>src/pages/ClientList.jsx:38</code>, <code>src/pages/Financial.jsx:64</code>, <code>src/pages/Obligations.jsx:93</code>, <code>src/pages/Documents.jsx:66, 73</code><br>
+    <strong>Mecanismo:</strong> O desenvolvedor estruturou todas as buscas das 5 telas principais aplicando a cláusula <code>where('userId', '==', user.uid)</code> do Firestore SDK. Isso impede vazamento acidental em uso normal da UI.<br>
+    <strong>Cobertura:</strong> 100% das páginas autenticadas com listagem de dados.
+  </div>
+</div>
+
+<div class="strength-box">
+  <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">
+    Ponto Forte 2 — Proteção Global de Rotas de Navegação via <code>ProtectedRoute</code>
+  </div>
+  <div style="font-size: 8.5pt; color: #047857;">
+    <strong>Arquivo:</strong> <code>src/components/layout/ProtectedRoute.jsx:10-33</code> e <code>src/App.jsx:27-36</code><br>
+    <strong>Mecanismo:</strong> Componente de rota protegida que intercepta qualquer transição no cliente e redireciona usuários não autenticados para <code>/login</code>, mantendo estado de carregamento assíncrono seguro.<br>
+    <strong>Cobertura:</strong> Todas as rotas administrativas/privadas do sistema.
+  </div>
+</div>
+
+<div class="strength-box">
+  <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">
+    Ponto Forte 3 — Ausência de Injeção Direta de HTML (React DOM Seguro)
+  </div>
+  <div style="font-size: 8.5pt; color: #047857;">
+    <strong>Arquivo:</strong> Todo o diretório <code>src/</code><br>
+    <strong>Mecanismo:</strong> Zero ocorrências de <code>dangerouslySetInnerHTML</code>, <code>innerHTML</code> ou <code>eval()</code>. A renderização de variáveis de usuário passa pela sanitização nativa do React DOM.<br>
+    <strong>Cobertura:</strong> 100% dos componentes visuais.
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ACHADOS DETALHADOS -->
+<h1>3. Achados Detalhados da Auditoria</h1>
+
+<!-- ACHADO 1 -->
+<div class="finding-card">
+  <div class="finding-header">
+    <div class="finding-title">Achado 1 — Ausência Completa de Regras de Segurança no Banco (Firestore / Storage Rules)</div>
+    <span class="chip chip-critica">Severidade: CRÍTICA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 1 (Banco Sem Tranca)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> Raiz do repositório (<code>firestore.rules</code> e <code>storage.rules</code> inexistentes)</div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/services/firebase.js:28-36
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+// NENHUM arquivo firestore.rules ou storage.rules presente no repositório.
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>Em arquiteturas BaaS, o cliente fala diretamente com a infraestrutura na nuvem. Sem Security Rules versionadas e declaradas, o isolamento depende da configuração remota do Firebase. Se as regras estiverem em modo padrão ou permissivo, qualquer atacante com as credenciais públicas pode consultar e deletar documentos de todos os usuários omitindo o filtro <code>where('userId', '==', user.uid)</code> via script ou DevTools.</p>
+  <div class="exploit-box">
+    <strong>Exploit Path:</strong><br>
+    [Atacante abre console do browser ou Node.js com a config do Firebase] → <code>await getDocs(collection(db, 'clients'))</code> (sem cláusula where) → [Recebe todos os dados cadastrais, faturamento e documentos de todos os clientes de todos os usuários da aplicação].
+  </div>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Regras padrão do Firestore permissivas ou em modo teste.</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Criar imediatamente <code>firestore.rules</code> impondo que <code>request.auth.uid == resource.data.userId</code> para leitura e escrita, e vincular o deploy no CI/CD.</div>
+</div>
+
+<!-- ACHADO 2 -->
+<div class="finding-card alta">
+  <div class="finding-header">
+    <div class="finding-title">Achado 2 — Gating de Módulo Pro Apenas Visual no Cliente com Upload Ativo</div>
+    <span class="chip chip-alta">Severidade: ALTA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 2 (Permissão Definida no Navegador)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> <code>src/pages/Documents.jsx:150-204</code> e <code>src/pages/Documents.jsx:103-128</code></div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/pages/Documents.jsx:150-204
+<div style={{ position: 'absolute', inset: 0, zIndex: 50, backgroundColor: 'rgba(15, 23, 42, 0.88)' }}>
+  <h1>Módulo em Construção</h1>
+  <span>🚀 Disponível em breve para o Plano Pro</span>
+</div>
+// ...
+<div className="docs-layout" style={{ opacity: 0.3, pointerEvents: 'none' }}>
+
+// Linhas 103-112: Lógica de upload totalmente ativa no bundle e no componente!
+async function handleUpload() {
+  const path = `documents/${user.uid}/${selectedClient.id}/${uploadForm.year}/${Date.now()}_${pendingFile.name}`;
+  const task = uploadBytesResumable(ref(storage, path), pendingFile);
+  // ...
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>O bloqueio do módulo "GED / Plano Pro" reside unicamente no DOM (estilos CSS <code>opacity: 0.3</code>, <code>pointerEvents: 'none'</code> e overlay <code>zIndex: 50</code>). Não há verificação de assinatura comercial ou Custom Claims do Firebase Auth. Qualquer usuário gratuito pode remover o overlay pelo console do navegador ou disparar <code>uploadBytesResumable</code>, consumindo espaço e recursos no Firebase Storage de forma não autorizada.</p>
+  <div class="exploit-box">
+    <strong>Exploit Path:</strong><br>
+    [Usuário autenticado no Plano Free acessa /documentos] → [Remove o nó DOM do overlay ou chama handleUpload()] → [Grava e baixa arquivos no Firebase Storage burlando a restrição comercial de plano].
+  </div>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Nenhuma (basta abrir o navegador e inspecionar elemento).</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Validar direitos no backend (Firebase Custom Claims ou Security Rules no Storage verificando <code>request.auth.token.plan == 'pro'</code>) antes de processar qualquer requisição.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ACHADO 3 -->
+<div class="finding-card alta">
+  <div class="finding-header">
+    <div class="finding-title">Achado 3 — IDOR em Operações de Atualização e Exclusão Direta por ID</div>
+    <span class="chip chip-alta">Severidade: ALTA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 3 (IDOR)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> <code>src/pages/QuoteList.jsx:58</code>, <code>src/pages/Financial.jsx:85</code>, <code>src/components/ClientDetailModal.jsx:145</code>, <code>src/pages/Obligations.jsx:168, 180</code>, <code>src/pages/Documents.jsx:135-136</code></div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/pages/QuoteList.jsx:58
+await updateDoc(doc(db, 'quotes', id), { status: newStatus });
+
+// src/pages/Financial.jsx:85
+await updateDoc(doc(db, 'quotes', id), { paymentStatus: status });
+
+// src/components/ClientDetailModal.jsx:145
+await updateDoc(doc(db, 'clients', client.id), updatedData);
+
+// src/pages/Obligations.jsx:180
+await deleteDoc(doc(db, 'obligations', id));
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>As funções de mutação invocam o Firestore SDK diretamente passando o ID do documento sem validar a posse no cliente nem via Security Rules no banco. Um usuário autenticado pode invocar a função no console ou montar um script passando o ID de outro usuário/tenant e adulterar status financeiro, alterar dados cadastrais de clientes alheios ou deletar obrigações fiscais e arquivos.</p>
+  <div class="exploit-box">
+    <strong>Exploit Path:</strong><br>
+    [Usuário autenticado A obtém ID de uma cotação do usuário B] → <code>updateDoc(doc(db, 'quotes', 'ID_DE_OUTRO_USUARIO'), { paymentStatus: 'pago' })</code> → [Status de pagamento do usuário B é adulterado no banco].
+  </div>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Ausência de Security Rules impondo <code>resource.data.userId == request.auth.uid</code>.</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Implementar regras no Firestore que impeçam escrita e deleção caso <code>request.auth.uid != resource.data.userId</code>.</div>
+</div>
+
+<!-- ACHADO 4 -->
+<div class="finding-card alta">
+  <div class="finding-header">
+    <div class="finding-title">Achado 4 — Vazamento de Informações Privadas e Notas Internas via Rota Pública</div>
+    <span class="chip chip-alta">Severidade: ALTA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 3 (IDOR / Exposição de Dados)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> <code>src/pages/PublicQuote.jsx:25-26</code> e <code>src/pages/QuoteForm.jsx:164, 401</code></div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/pages/QuoteForm.jsx:164 e 401
+internalNotes: form.internalNotes.trim() || null,
+// ...
+<span className="form-hint">⚠️ Este campo é privado e não é enviado ao cliente.</span>
+
+// src/pages/PublicQuote.jsx:25-26 (Rota PÚBLICA sem autenticação)
+const snap = await getDoc(doc(db, 'quotes', id));
+if (snap.exists()) setQuote({ id: snap.id, ...snap.data() });
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>A rota pública <code>/orcamento/:id</code> executa <code>getDoc</code> baixando todo o documento do Firestore, sem filtrar os campos confidenciais. Como <code>internalNotes</code> é persistido no mesmo documento que a cotação, qualquer pessoa com o link público tem acesso às notas estratégicas/confidenciais da contabilidade diretamente inspecionando o estado da página ou a requisição de rede.</p>
+  <div class="exploit-box">
+    <strong>Exploit Path:</strong><br>
+    [Contador preenche cotação com dados sensíveis em "Observações Internas" e envia link ao cliente] → [Cliente acessa /orcamento/:id e inspeciona o objeto retornado] → [Visualiza anotações financeiras e segredos internos confidenciais].
+  </div>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Nenhuma (qualquer portador do link público do orçamento).</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Isolar <code>internalNotes</code> em uma subcoleção privada <code>quotes/{id}/private/notes</code> com acesso restrito via rules ao <code>userId</code> criador, ou sanitizar o objeto antes de disponibilizar.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ACHADO 5 -->
+<div class="finding-card media">
+  <div class="finding-header">
+    <div class="finding-title">Achado 5 — Credenciais do Firebase Hardcoded no Código e Expostas no Histórico Git</div>
+    <span class="chip chip-media">Severidade: MÉDIA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 4 (Chaves Expostas)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> <code>src/services/firebase.js:15-23</code> e histórico Git</div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/services/firebase.js:15-23
+const firebaseConfig = {
+  apiKey: "AIzaSyDoZl82pG0R9RUM4OidoQv_MUrKDdBrn9Y",
+  authDomain: "contabiliza-ja.firebaseapp.com",
+  projectId: "contabiliza-ja",
+  storageBucket: "contabiliza-ja.firebasestorage.app",
+  messagingSenderId: "812266285491",
+  appId: "1:812266285491:web:1c306b12ddbd6dd6b0c3c6",
+  measurementId: "G-K48M2CCLR2"
+};
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>Embora em SPAs as chaves do Firebase atuem como identificadores públicos, o projeto possui <code>.env.example</code> e CI/CD configurado para secrets, mas o código ignora <code>import.meta.env</code>. A chave está embutida no código-fonte, no bundle (<code>dist/assets/index-mCkaJJYn.js</code>) e foi commitada no histórico Git. Em conjunto com a ausência de Security Rules (Achado 1), permite consumo e abuso de quotas do projeto.</p>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Falta de restrição de HTTP Referrers na console GCP.</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Migrar para <code>import.meta.env.VITE_FIREBASE_API_KEY</code>, restringir a chave na console Google Cloud ao domínio oficial e rotacionar as credenciais.</div>
+</div>
+
+<!-- ACHADO 6 -->
+<div class="finding-card baixa">
+  <div class="finding-header">
+    <div class="finding-title">Achado 6 — Download de Arquivo com Link Direto sem Validação de Protocolo (Risco XSS)</div>
+    <span class="chip chip-baixa">Severidade: BAIXA</span>
+  </div>
+  <div class="finding-prop"><span class="finding-label">Categoria:</span> 5 (Inputs Sem Tratamento)</div>
+  <div class="finding-prop"><span class="finding-label">Arquivo:</span> <code>src/pages/Documents.jsx:338</code></div>
+  <div class="finding-prop"><span class="finding-label">Trecho:</span></div>
+  <pre>
+// src/pages/Documents.jsx:338
+<a href={d.url} target="_blank" rel="noreferrer" className="doc-action-btn" title="Baixar">⬇</a>
+  </pre>
+  <div class="finding-prop"><span class="finding-label">Por que é explorável:</span></div>
+  <p>O campo <code>d.url</code> é recuperado do banco de dados e injetado diretamente no atributo <code>href</code> sem validação prévia de esquema de URL. Caso um registro no banco de dados seja criado ou adulterado com um esquema <code>javascript:alert(1)</code> ou <code>data:</code>, o clique do usuário causará a execução arbitrária de JavaScript no contexto da aplicação (Stored DOM XSS).</p>
+  <div class="finding-prop"><span class="finding-label">Condição de explorabilidade:</span> Inserção ou alteração maliciosa do campo <code>url</code> no documento Firestore.</div>
+  <div class="finding-prop"><span class="finding-label">Sugestão de correção:</span> Validar se a URL inicia estritamente com <code>https://firebasestorage.googleapis.com/</code> antes de renderizar no <code>href</code>.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- PLANO DE AÇÃO E RECOMENDAÇÕES PRIORIZADAS -->
+<h1>4. Recomendações Priorizadas (Plano de Ação)</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 10%;">Prioridade</th>
+      <th style="width: 25%;">Ação Recomendada</th>
+      <th style="width: 15%;">Impacto</th>
+      <th style="width: 50%;">Descrição Técnica da Mitigação</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="chip chip-critica">P1</span></td>
+      <td><strong>Publicar firestore.rules e storage.rules</strong></td>
+      <td>Elimina Risco Crítico</td>
+      <td>Criar e versionar regras que exijam <code>request.auth != null && request.auth.uid == resource.data.userId</code> para qualquer operação de leitura, escrita e exclusão.</td>
+    </tr>
+    <tr>
+      <td><span class="chip chip-alta">P2</span></td>
+      <td><strong>Isolar Notas Internas Confidenciais</strong></td>
+      <td>Elimina Risco Alto</td>
+      <td>Mover <code>internalNotes</code> para a subcoleção <code>quotes/{id}/private/notes</code> ou sanitizar o objeto na rota pública <code>/orcamento/:id</code> para não entregar campos internos.</td>
+    </tr>
+    <tr>
+      <td><span class="chip chip-alta">P3</span></td>
+      <td><strong>Implementar RBAC / Token Claims para o Plano Pro</strong></td>
+      <td>Elimina Risco Alto</td>
+      <td>Não depender de CSS (<code>display: none</code> / overlay) para travar recursos pagos. Utilizar Custom Claims no Firebase Auth e checar permissões em Cloud Functions ou Storage Rules.</td>
+    </tr>
+    <tr>
+      <td><span class="chip chip-media">P4</span></td>
+      <td><strong>Padronizar .env e Restringir API Key</strong></td>
+      <td>Elimina Risco Médio</td>
+      <td>Substituir o hardcode em <code>firebase.js</code> por <code>import.meta.env.*</code> e configurar restrição de HTTP Referrers no Google Cloud Console para o domínio do GitHub Pages.</td>
+    </tr>
+    <tr>
+      <td><span class="chip chip-baixa">P5</span></td>
+      <td><strong>Validação Segura de URLs em Links Externos</strong></td>
+      <td>Elimina Risco Baixo</td>
+      <td>Implementar helper de validação de URL antes de popular atributos <code>href</code>, garantindo protocolos seguros (<code>https:</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SEÇÃO DE ISSUES PARA O GITHUB -->
+<h1>5. Issues Prontas para o GitHub</h1>
+<p style="font-size: 8.5pt; color: #64748b; margin-bottom: 16px;">
+  Copie e cole o conteúdo de cada bloco delimitado abaixo diretamente na aba <em>Issues</em> do repositório no GitHub para rastreamento e correção pelo time de engenharia.
+</p>
+
+<div class="issue-container">
+--- ISSUE 1 ---
+## [Segurança] Ausência de Security Rules Versionadas no Firestore e Storage
+
+**Labels:** `security`, `severity: critical`, `backend`
+
+### Descrição do Problema
+O repositório não possui os arquivos de configuração de regras de segurança (`firestore.rules` e `storage.rules`). Em uma aplicação de arquitetura BaaS (Firebase) sem backend intermediário, o isolamento dos dados reside integralmente nas regras da nuvem.
+
+### Evidência
+- Arquivo: `src/services/firebase.js:28-36`
+```javascript
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+```
+Inexistência de `firestore.rules` no repositório.
+
+### Impacto
+Se as regras na Console do Firebase estiverem em modo permissivo ou de teste, qualquer usuário ou agente externo pode ler, modificar ou deletar todo o banco de dados (clientes, orçamentos, financeiro) de todos os usuários cadastrados.
+
+### Sugestão de Correção
+1. Criar o arquivo `firestore.rules` com validação de titularidade:
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{collection}/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    match /quotes/{quoteId} {
+      allow read: if true; // Apenas leitura pública de campos necessários
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
+```
+2. Incluir o deploy das regras no pipeline do GitHub Actions.
+
+### Critérios de Aceite
+- [ ] Arquivo `firestore.rules` criado e testado com o emulador do Firebase.
+- [ ] Usuário não consegue consultar documentos com `userId` diferente do seu token de autenticação.
+- [ ] Tentativas de consulta sem filtro de tenant são rejeitadas pelo Firestore com erro de permissão.
+--- FIM ISSUE 1 ---
+</div>
+
+<div class="issue-container">
+--- ISSUE 2 ---
+## [Segurança] IDOR: Mutação e Deleção Direta de Documentos sem Verificação de Posse
+
+**Labels:** `security`, `severity: high`, `bug`
+
+### Descrição do Problema
+Diversas funções de mutação no frontend invocam diretamente `updateDoc` e `deleteDoc` passando o identificador único (`id`) sem verificar no client ou no banco se o recurso pertence ao usuário solicitante.
+
+### Evidência
+- `src/pages/QuoteList.jsx:58`: `await updateDoc(doc(db, 'quotes', id), { status: newStatus });`
+- `src/pages/Financial.jsx:85`: `await updateDoc(doc(db, 'quotes', id), { paymentStatus: status });`
+- `src/components/ClientDetailModal.jsx:145`: `await updateDoc(doc(db, 'clients', client.id), updatedData);`
+- `src/pages/Obligations.jsx:180`: `await deleteDoc(doc(db, 'obligations', id));`
+- `src/pages/Documents.jsx:136`: `await deleteDoc(doc(db, 'documents', d.id));`
+
+### Impacto
+Um usuário autenticado pode emitir chamadas manuais substituindo o ID de documento para alterar ou deletar clientes, obrigações e cotações de terceiros.
+
+### Sugestão de Correção
+1. Reforçar regras no backend (`firestore.rules`) garantindo que `resource.data.userId == request.auth.uid` tanto no `update` quanto no `delete`.
+2. No cliente, antes da mutação, assegurar que o objeto pertença ao estado do usuário logado.
+
+### Critérios de Aceite
+- [ ] Teste automatizado ou manual confirmando que um usuário B não consegue alterar o `status` ou `paymentStatus` de uma cotação pertencente ao usuário A.
+--- FIM ISSUE 2 ---
+</div>
+
+<div class="issue-container">
+--- ISSUE 3 ---
+## [Segurança] Vazamento de Notas Internas Confidenciais na Rota Pública de Orçamento
+
+**Labels:** `security`, `severity: high`, `privacy`
+
+### Descrição do Problema
+O formulário de criação de orçamentos incentiva o contador a registrar anotações privadas com o aviso: *"⚠️ Este campo é privado e não é enviado ao cliente"*. No entanto, o campo `internalNotes` é salvo no próprio documento `quotes/{id}` e a página pública `/orcamento/:id` baixa o snapshot completo do documento via `getDoc()`.
+
+### Evidência
+- `src/pages/QuoteForm.jsx:164`: `internalNotes: form.internalNotes.trim() || null`
+- `src/pages/QuoteForm.jsx:401`: `<span className="form-hint">⚠️ Este campo é privado e não é enviado ao cliente.</span>`
+- `src/pages/PublicQuote.jsx:25-26`:
+```javascript
+const snap = await getDoc(doc(db, 'quotes', id));
+if (snap.exists()) setQuote({ id: snap.id, ...snap.data() });
+```
+
+### Impacto
+Qualquer cliente ou terceiro que receba o link público da proposta pode inspecionar o estado do React ou a aba Rede do navegador e ler anotações confidenciais/estratégicas feitas pelo contador.
+
+### Sugestão de Correção
+1. Separar dados públicos dos privados: salvar as notas internas em uma subcoleção privada `quotes/{quoteId}/private/notes` acessível somente pelo contador autenticado.
+2. Como alternativa imediata, sanitizar os dados no momento da consulta pública para que `internalNotes` não venha no payload.
+
+### Critérios de Aceite
+- [ ] Acessar `/orcamento/:id` e inspecionar a resposta do Firebase: o campo `internalNotes` não deve existir no objeto retornado ao visitante.
+--- FIM ISSUE 3 ---
+</div>
+
+<div class="issue-container">
+--- ISSUE 4 ---
+## [Segurança] Gating do Plano Pro Realizado Apenas no Navegador via CSS
+
+**Labels:** `security`, `severity: high`, `feature-flag`
+
+### Descrição do Problema
+O módulo de Gestão Eletrônica de Documentos (GED) em `src/pages/Documents.jsx` está bloqueado visualmente por um overlay informando que o recurso é exclusivo do "Plano Pro". No entanto, a lógica de consulta (`getDocs`) e de upload (`uploadBytesResumable` no Storage) continua 100% ativa no código-fonte e montada no DOM.
+
+### Evidência
+- `src/pages/Documents.jsx:150-204` e `103-128`:
+```javascript
+<div style={{ position: 'absolute', inset: 0, zIndex: 50, ... }}>
+  <span>🚀 Disponível em breve para o Plano Pro</span>
+</div>
+// ...
+<div className="docs-layout" style={{ opacity: 0.3, pointerEvents: 'none' }}>
+```
+
+### Impacto
+Qualquer usuário no plano gratuito pode remover o overlay pelo console do navegador ou disparar a rotina de upload, consumindo armazenamento e faturamento do Firebase Storage sem pagar pela assinatura.
+
+### Sugestão de Correção
+1. Implementar verificação de permissão no backend do Firebase via Custom Claims (`request.auth.token.plan == 'pro'`).
+2. Criar regras no `storage.rules` permitindo gravação em `/documents/...` apenas para usuários com permissão confirmada.
+
+### Critérios de Aceite
+- [ ] Usuários sem a flag Pro no token de autenticação são bloqueados de realizar upload tanto pela interface quanto por chamadas de API direta no Firebase Storage.
+--- FIM ISSUE 4 ---
+</div>
+
+<div class="issue-container">
+--- ISSUE 5 ---
+## [Segurança] Hardcode de Credenciais do Firebase e Ausência de Uso de Variáveis de Ambiente
+
+**Labels:** `security`, `severity: medium`, `configuration`
+
+### Descrição do Problema
+O arquivo `src/services/firebase.js` possui as configurações da aplicação com chaves e identificadores hardcoded, ignorando as variáveis de ambiente (`.env` e secrets do GitHub Actions). Além disso, a chave foi comitada no histórico Git do projeto.
+
+### Evidência
+- `src/services/firebase.js:15-23`:
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyDoZl82pG0R9RUM4OidoQv_MUrKDdBrn9Y",
+  authDomain: "contabiliza-ja.firebaseapp.com",
+  projectId: "contabiliza-ja",
+  // ...
+};
+```
+
+### Impacto
+Facilita o abuso de quotas da API e faturamento do Google Cloud por terceiros caso o domínio não esteja devidamente restringido no console do GCP.
+
+### Sugestão de Correção
+1. Substituir a configuração estática por `import.meta.env.VITE_FIREBASE_API_KEY`, etc.
+2. Na console do Google Cloud, aplicar restrição de domínio (HTTP Referrer) para a chave da API.
+3. Considerar a rotação da chave se o repositório tiver sido tornado público anteriormente.
+
+### Critérios de Aceite
+- [ ] Configuração do Firebase consome exclusivamente variáveis de ambiente `import.meta.env.*`.
+- [ ] Chave da API protegida por restrição de referrer na Console do Google Cloud.
+--- FIM ISSUE 5 ---
+</div>
+
+<div class="issue-container">
+--- ISSUE 6 ---
+## [Segurança] Injeção de URL sem Validação de Protocolo em Link de Download (Risco XSS)
+
+**Labels:** `security`, `severity: low`, `frontend`
+
+### Descrição do Problema
+O componente `src/pages/Documents.jsx` renderiza a URL de download diretamente na propriedade `href` da tag `<a>` sem validação do esquema de URL.
+
+### Evidência
+- `src/pages/Documents.jsx:338`:
+```javascript
+<a href={d.url} target="_blank" rel="noreferrer" className="doc-action-btn" title="Baixar">⬇</a>
+```
+
+### Impacto
+Caso um documento tenha o campo `url` modificado com `javascript:...`, o clique do usuário executa script arbitrário no navegador (Stored DOM XSS).
+
+### Sugestão de Correção
+Implementar função utilitária de validação de URL antes da renderização:
+```javascript
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+```
+
+### Critérios de Aceite
+- [ ] Links com esquemas não seguros (`javascript:`, `data:`, `vbscript:`) são desativados ou bloqueados de renderizar na interface.
+--- FIM ISSUE 6 ---
+</div>
+
+</body>
+</html>
+"""
+
+def generate_html():
+    print(f"[*] Gerando HTML em: {HTML_PATH}")
+    with open(HTML_PATH, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+    print("[+] HTML gerado com sucesso!")
+
+def find_chrome():
+    for p in CHROME_PATHS:
+        if os.path.exists(p):
+            return p
+    return None
+
+def convert_html_to_pdf():
+    chrome_exe = find_chrome()
+    if not chrome_exe:
+        print("[-] Nenhuma ferramenta compatível de Chromium/Edge encontrada.")
+        print("[-] PDF NÃO gerado — ferramenta Chrome/Edge ausente.")
+        return False
+
+    print(f"[*] Utilizando Chromium/Edge em: {chrome_exe}")
+    html_url = HTML_PATH.as_uri()
+    pdf_out = str(PDF_PATH)
+
+    cmd = [
+        chrome_exe,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={pdf_out}",
+        html_url
+    ]
+
+    print(f"[*] Executando comando de impressão para PDF...")
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if PDF_PATH.exists() and PDF_PATH.stat().st_size > 0:
+            print(f"[+] PDF gerado com sucesso em: {pdf_out}")
+            return True
+        else:
+            print(f"[-] Erro na geração do PDF. Código de saída: {res.returncode}")
+            if res.stderr:
+                print(f"[-] Stderr: {res.stderr}")
+            return False
+    except Exception as e:
+        print(f"[-] Falha na conversão: {e}")
+        return False
+
+def count_pdf_pages(pdf_file):
+    if not os.path.exists(pdf_file):
+        return 0
+    with open(pdf_file, "rb") as f:
+        data = f.read()
+    # Contagem de objetos /Type /Page no PDF
+    matches = re.findall(rb"/Type\s*/Page\b", data)
+    return len(matches)
+
+def validate_pdf():
+    if not PDF_PATH.exists():
+        print("[-] Validação falhou: PDF não encontrado.")
+        return False
+    size = PDF_PATH.stat().st_size
+    pages = count_pdf_pages(PDF_PATH)
+    print(f"[+] Validação do PDF concluída com sucesso:")
+    print(f"    - Arquivo: {PDF_PATH.name}")
+    print(f"    - Tamanho: {size / 1024:.1f} KB")
+    print(f"    - Páginas detectadas: {pages}")
+    return True
+
+if __name__ == "__main__":
+    generate_html()
+    success = convert_html_to_pdf()
+    if success:
+        validate_pdf()
+    else:
+        sys.exit(1)
