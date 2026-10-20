@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react' // pode variar dependendo do seu projeto
+import react from '@vitejs/plugin-react' // ou o plugin do seu framework
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Contabiliza-ja/',
-  server: {
-    host: true, // Libera o acesso para a rede local
-    allowedHosts: true // Permite que o Ngrok acesse sem dar o erro 403
-  }
+
+  base: process.env.NODE_ENV === 'production' && process.env.GITHUB_ACTIONS
+    ? '/Contabiliza-ja/' 
+    : '/', 
 })
+
