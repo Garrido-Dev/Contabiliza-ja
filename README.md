@@ -16,9 +16,9 @@ O **Contabiliza Já** resolve a desorganização de controlar orçamentos, entre
 | :---: | :---: |
 | ![Tela de Consultorias](https://via.placeholder.com/600x350/0f172a/ffffff?text=PRINT_CONSULTORIAS) | ![Dashboard Financeiro](https://via.placeholder.com/600x350/0f172a/ffffff?text=PRINT_FINANCEIRO) |
 
-| 👥 Carteira de Clientes | 💳 Paywall / Limite Freemium |
+| 👥 Carteira de Clientes | Calendário |
 | :---: | :---: |
-| ![Gestão de Clientes](https://via.placeholder.com/600x350/0f172a/ffffff?text=PRINT_CLIENTES) | ![Aviso de Limite de Clientes](https://via.placeholder.com/600x350/0f172a/ffffff?text=PRINT_PAYWALL) |
+| ![Gestão de Clientes](https://via.placeholder.com/600x350/0f172a/ffffff?text=PRINT_CLIENTES) | ![Calendario](src/assets/calendario.png) |
 
 ---
 
