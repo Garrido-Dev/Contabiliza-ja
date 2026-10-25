@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 function fmt(v) {
@@ -32,7 +32,8 @@ export default function ClientDetailModal({
   initialTab = 'info', 
   startEditing = false,
   onClose,
-  onClientUpdated 
+  onClientUpdated,
+  onClientDeleted
 }) {
   const navigate = useNavigate();
   const [client, setClient] = useState(initialClient);
@@ -157,6 +158,25 @@ export default function ClientDetailModal({
       console.error(err);
       setSaveError('Erro ao salvar dados do cliente. Tente novamente.');
     } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteClient() {
+    const confirmMsg = `Deseja realmente excluir o cliente "${client.name}"?\n\nEsta ação removerá o cadastro do cliente e não poderá ser desfeita.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setSaving(true);
+    setSaveError('');
+    try {
+      await deleteDoc(doc(db, 'clients', client.id));
+      if (onClientDeleted) {
+        onClientDeleted(client.id);
+      }
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setSaveError('Erro ao excluir cliente. Verifique sua conexão.');
       setSaving(false);
     }
   }
@@ -716,7 +736,7 @@ export default function ClientDetailModal({
             + Nova Consultoria p/ {client.name.split(' ')[0]}
           </button>
           
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {!isEditing && tab === 'info' && (
               <button
                 type="button"
@@ -726,6 +746,16 @@ export default function ClientDetailModal({
                 ✏️ Editar Dados
               </button>
             )}
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleDeleteClient}
+              disabled={saving}
+              style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,0.25)' }}
+              title="Excluir cadastro deste cliente"
+            >
+              🗑️ Excluir Cliente
+            </button>
             <button
               type="button"
               className="btn btn-ghost"

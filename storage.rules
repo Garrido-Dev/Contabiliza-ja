@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Firebase Storage desativado para prevenir cobranças (usuário optou por não utilizar serviços pagos)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

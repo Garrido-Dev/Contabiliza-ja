@@ -5,6 +5,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import Layout from './components/layout/Layout';
 
 import Login from './pages/Login';
 import QuoteList from './pages/QuoteList';
@@ -33,7 +34,25 @@ export default function App() {
           <Route path="/financeiro" element={<ProtectedRoute><Financial /></ProtectedRoute>} />
           <Route path="/documentos" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
           <Route path="/obrigacoes" element={<ProtectedRoute><Obligations /></ProtectedRoute>} />
-          <Route path="/configuracoes" element={<ProtectedRoute><div style={{padding:40,color:'var(--text)'}}>⚙️ Configurações — Em breve</div></ProtectedRoute>} />
+          <Route path="/configuracoes" element={
+            <ProtectedRoute>
+              <Layout>
+                <div className="page-header">
+                  <div className="header-row">
+                    <div>
+                      <h2>⚙️ Configurações</h2>
+                      <p>Preferências da conta e dados da empresa</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="card">
+                  <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
+                    ⚙️ Módulo de configurações da conta e dados corporativos estará disponível em breve.
+                  </p>
+                </div>
+              </Layout>
+            </ProtectedRoute>
+          } />
 
           <Route path="/" element={<Navigate to="/consultorias" replace />} />
           <Route path="*" element={<Navigate to="/consultorias" replace />} />

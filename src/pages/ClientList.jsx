@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/layout/Layout';
@@ -62,6 +62,28 @@ export default function ClientList() {
   function handleClientUpdated(updatedClient) {
     setClients(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
     setSelectedClient(updatedClient);
+  }
+
+  // Remove cliente localmente quando excluído
+  function handleClientDeleted(clientId) {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+    if (selectedClient?.id === clientId) {
+      setSelectedClient(null);
+    }
+  }
+
+  // Exclusão de cliente com confirmação
+  async function handleDeleteClient(clientId, clientName) {
+    const confirmMsg = `Deseja realmente excluir o cliente "${clientName}"?\n\nEsta ação removerá o cadastro do cliente e não poderá ser desfeita.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await deleteDoc(doc(db, 'clients', clientId));
+      handleClientDeleted(clientId);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir cliente. Verifique sua conexão e tente novamente.');
+    }
   }
 
   // Mapa de métricas financeiras por cliente para exibição rápida na tabela
@@ -221,6 +243,15 @@ export default function ClientList() {
                           >
                             👁️ Dados
                           </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleDeleteClient(c.id, c.name)}
+                            title="Excluir este cliente"
+                            style={{ borderColor: 'rgba(239,68,68,0.25)', color: 'var(--red)' }}
+                          >
+                            🗑️ Excluir
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -244,6 +275,7 @@ export default function ClientList() {
             setStartEditing(false);
           }}
           onClientUpdated={handleClientUpdated}
+          onClientDeleted={handleClientDeleted}
         />
       )}
     </Layout>

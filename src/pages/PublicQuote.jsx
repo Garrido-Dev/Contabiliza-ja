@@ -3,12 +3,12 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 import { generateQuotePDF } from '../services/pdfGenerator';
 import imglogo from "../assets/logo.contabilizaJa-branco.png"
-
 
 function fmt(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -16,6 +16,8 @@ function fmt(value) {
 
 export default function PublicQuote() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,9 @@ export default function PublicQuote() {
     async function fetchQuote() {
       try {
         const snap = await getDoc(doc(db, 'quotes', id));
-        if (snap.exists()) setQuote({ id: snap.id, ...snap.data() });
+        const rawData = snap.data();
+        delete rawData.internalNotes; // Garante que notas privadas nunca fiquem na memória do cliente
+        setQuote({ id: snap.id, ...rawData });
       } catch (err) {
         console.error(err);
       } finally {
@@ -33,12 +37,52 @@ export default function PublicQuote() {
     fetchQuote();
   }, [id]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>Carregando orçamento...</div>;
-  if (!quote) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--red)' }}>Orçamento não encontrado.</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
+        <p style={{ marginBottom: 16 }}>Carregando orçamento...</p>
+        {user && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/consultorias')}>
+            ← Voltar para Consultorias
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!quote) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--red)' }}>
+        <p style={{ marginBottom: 16 }}>Orçamento não encontrado.</p>
+        {user && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/consultorias')}>
+            ← Voltar para Consultorias
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div style={{ minHeight: '100vh', padding: 20, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ width: '100%', maxWidth: 600 }}>
+        {/* Barra de retorno ao painel visível apenas para o contador autenticado */}
+        {user && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => navigate('/consultorias')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              ← Voltar para Consultorias
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              Visualização de proposta (Contador)
+            </span>
+          </div>
+        )}
+
         <div className="card" style={{ marginBottom: 20 }}>
           <div style={{
             display: 'flex',

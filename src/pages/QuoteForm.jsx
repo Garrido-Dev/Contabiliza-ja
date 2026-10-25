@@ -161,11 +161,19 @@ export default function QuoteForm() {
         totalValue,
         deadline:      form.deadline || null,
         paymentTerms:  form.paymentTerms || null,
-        internalNotes: form.internalNotes.trim() || null,
         status:        'pendente',
         paymentStatus: 'pendente',
         createdAt:     serverTimestamp(),
       });
+
+      // Salva anotações internas em subcoleção privada para nunca vazar na página pública do cliente
+      if (form.internalNotes.trim()) {
+        await addDoc(collection(db, 'quotes', docRef.id, 'privateNotes'), {
+          userId:    user.uid,
+          notes:     form.internalNotes.trim(),
+          createdAt: serverTimestamp(),
+        });
+      }
 
       // Monta objeto para exibir preview e PDF
       setCreated({
@@ -203,7 +211,7 @@ export default function QuoteForm() {
               className="btn btn-ghost"
               onClick={() => navigate('/consultorias')}
             >
-              Ver lista
+              ← Voltar para Consultorias
             </button>
           </div>
         </div>
@@ -237,8 +245,8 @@ export default function QuoteForm() {
             <h2>Nova Consultoria</h2>
             <p>Preencha os dados do orçamento</p>
           </div>
-          <button className="btn btn-ghost" onClick={() => navigate('/consultorias')}>
-            Cancelar
+          <button type="button" className="btn btn-ghost" onClick={() => navigate('/consultorias')}>
+            ← Voltar para Consultorias
           </button>
         </div>
       </div>

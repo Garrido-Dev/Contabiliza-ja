@@ -49,7 +49,15 @@ export default function ClientForm() {
   return (
     <Layout>
       <div className="page-header">
-        <h2>Novo Cliente</h2>
+        <div className="header-row">
+          <div>
+            <h2>Novo Cliente</h2>
+            <p>Cadastre um novo cliente na sua carteira</p>
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={() => navigate('/clientes')}>
+            ← Voltar para Clientes
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="card">

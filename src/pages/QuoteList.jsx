@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/layout/Layout';
@@ -60,6 +60,19 @@ export default function QuoteList() {
     } catch (err) {
       console.error(err);
       alert('Erro ao atualizar status.');
+    }
+  }
+
+  async function handleDeleteQuote(id, clientName) {
+    const confirmMsg = `Deseja realmente excluir o orçamento de "${clientName || 'Cliente'}"?\n\nEsta ação apagará o orçamento e não poderá ser desfeita.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await deleteDoc(doc(db, 'quotes', id));
+      setQuotes(prev => prev.filter(q => q.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir orçamento. Verifique sua conexão e tente novamente.');
     }
   }
 
@@ -131,13 +144,21 @@ export default function QuoteList() {
                       </select>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => navigate(`/orcamento/${q.id}`)}
-                          title="Ver link público"
+                          title="Ver proposta do orçamento"
                         >
                           👁️ Ver
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleDeleteQuote(q.id, q.clientName)}
+                          title="Excluir este orçamento"
+                          style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,0.25)' }}
+                        >
+                          🗑️ Excluir
                         </button>
                       </div>
                     </td>

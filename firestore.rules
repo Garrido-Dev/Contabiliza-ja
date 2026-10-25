@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções auxiliares de segurança
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    // ── Coleção de Clientes ──────────────────────────────────
+    match /clients/{clientId} {
+      allow read, update, delete: if isDocOwner();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Coleção de Consultorias / Orçamentos ─────────────────
+    match /quotes/{quoteId} {
+      // get: Leitura individual liberada para que clientes aprovem orçamentos via /orcamento/:id
+      // list: Apenas o dono pode listar sua própria carteira de orçamentos
+      allow get: if true;
+      allow list: if isDocOwner();
+      
+      // Criação: exige estar autenticado e vincular o próprio UID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Atualização e Exclusão: estritamente o dono da cotação
+      allow update, delete: if isDocOwner();
+
+      // Subcoleção de notas privadas: NUNCA pública para clientes
+      match /privateNotes/{noteId} {
+        allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+        allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      }
+    }
+
+    // ── Coleção de Documentos GED ────────────────────────────
+    match /documents/{docId} {
+      allow read, update, delete: if isDocOwner();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Coleção de Obrigações Fiscais ────────────────────────
+    match /obligations/{obligationId} {
+      allow read, update, delete: if isDocOwner();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Bloqueio Padrão para Qualquer Outra Coleção ──────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
