@@ -24,12 +24,15 @@ export default function PublicQuote() {
   useEffect(() => {
     async function fetchQuote() {
       try {
-        const snap = await getDoc(doc(db, 'quotes', id));
-        const rawData = snap.data();
-        delete rawData.internalNotes; // Garante que notas privadas nunca fiquem na memória do cliente
-        setQuote({ id: snap.id, ...rawData });
+        const snap = await getDoc(doc(db, 'publicQuotes', id));
+        if (snap.exists()) {
+          setQuote({ id: snap.id, ...snap.data() });
+        } else {
+          setQuote(null);
+        }
       } catch (err) {
         console.error(err);
+        setQuote(null);
       } finally {
         setLoading(false);
       }

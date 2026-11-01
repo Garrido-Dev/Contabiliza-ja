@@ -228,7 +228,7 @@ export default function PublicQuote() {
 
     async function fetchQuote() {
       try {
-        const docRef = doc(db, 'quotes', id);
+        const docRef = doc(db, 'publicQuotes', id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {

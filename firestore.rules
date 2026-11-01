@@ -8,46 +8,138 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner(userId) {
+      return isAuthenticated()
+        && userId is string
+        && request.auth.uid == userId;
+    }
+
     function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
+      return isOwner(resource.data.userId);
+    }
+
+    function ownerIsUnchanged() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    function isShareOwner(shareId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/quoteShares/$(shareId)).data.userId
+          == request.auth.uid;
+    }
+
+    function isShareOwnerAfterWrite(shareId) {
+      return isAuthenticated()
+        && getAfter(/databases/$(database)/documents/quoteShares/$(shareId)).data.userId
+          == request.auth.uid;
+    }
+
+    function hasOnlyPublicQuoteFields() {
+      return request.resource.data.keys().hasOnly([
+          'clientName',
+          'type',
+          'description',
+          'items',
+          'totalValue',
+          'createdAt',
+          'deadline',
+          'paymentTerms',
+          'whatsapp'
+        ])
+        && request.resource.data.keys().hasAll([
+          'clientName',
+          'type',
+          'description',
+          'items',
+          'totalValue',
+          'createdAt',
+          'deadline',
+          'paymentTerms',
+          'whatsapp'
+        ])
+        && request.resource.data.clientName is string
+        && request.resource.data.type is string
+        && request.resource.data.description is string
+        && request.resource.data.items is list
+        && request.resource.data.totalValue is number
+        && request.resource.data.whatsapp is string;
     }
 
     // ── Coleção de Clientes ──────────────────────────────────
     match /clients/{clientId} {
-      allow read, update, delete: if isDocOwner();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isDocOwner();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isDocOwner() && ownerIsUnchanged();
     }
 
     // ── Coleção de Consultorias / Orçamentos ─────────────────
     match /quotes/{quoteId} {
-      // get: Leitura individual liberada para que clientes aprovem orçamentos via /orcamento/:id
-      // list: Apenas o dono pode listar sua própria carteira de orçamentos
-      allow get: if true;
-      allow list: if isDocOwner();
-      
-      // Criação: exige estar autenticado e vincular o próprio UID
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      
-      // Atualização e Exclusão: estritamente o dono da cotação
-      allow update, delete: if isDocOwner();
+      allow read, delete: if isDocOwner();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isDocOwner() && ownerIsUnchanged();
 
-      // Subcoleção de notas privadas: NUNCA pública para clientes
       match /privateNotes/{noteId} {
-        allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
-        allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+        function ownsParentQuote() {
+          return isOwner(
+            get(/databases/$(database)/documents/quotes/$(quoteId)).data.userId
+          );
+        }
+
+        function ownsParentQuoteAfterWrite() {
+          return isOwner(
+            getAfter(/databases/$(database)/documents/quotes/$(quoteId)).data.userId
+          );
+        }
+
+        allow read, delete: if ownsParentQuote() && isDocOwner();
+        allow create: if ownsParentQuoteAfterWrite()
+          && isOwner(request.resource.data.userId);
+        allow update: if ownsParentQuote()
+          && isDocOwner()
+          && ownerIsUnchanged();
       }
+    }
+
+    // Mapeamento privado: shareId -> dono e orçamento correspondente.
+    match /quoteShares/{shareId} {
+      allow get: if isDocOwner();
+      allow list: if false;
+      allow create: if isOwner(request.resource.data.userId)
+        && request.resource.data.quoteId is string
+        && request.resource.data.keys().hasOnly(['userId', 'quoteId'])
+        && getAfter(
+          /databases/$(database)/documents/quotes/$(request.resource.data.quoteId)
+        ).data.userId == request.auth.uid;
+      allow update: if isDocOwner()
+        && ownerIsUnchanged()
+        && request.resource.data.quoteId == resource.data.quoteId
+        && request.resource.data.keys().hasOnly(['userId', 'quoteId']);
+      allow delete: if isDocOwner();
+    }
+
+    // Cópia pública estritamente limitada ao que aparece na proposta do cliente.
+    match /publicQuotes/{shareId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isShareOwnerAfterWrite(shareId)
+        && hasOnlyPublicQuoteFields();
+      allow update: if isShareOwner(shareId)
+        && hasOnlyPublicQuoteFields();
+      allow delete: if isShareOwner(shareId);
     }
 
     // ── Coleção de Documentos GED ────────────────────────────
     match /documents/{docId} {
-      allow read, update, delete: if isDocOwner();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isDocOwner();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isDocOwner() && ownerIsUnchanged();
     }
 
     // ── Coleção de Obrigações Fiscais ────────────────────────
     match /obligations/{obligationId} {
-      allow read, update, delete: if isDocOwner();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isDocOwner();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isDocOwner() && ownerIsUnchanged();
     }
 
     // ── Bloqueio Padrão para Qualquer Outra Coleção ──────────

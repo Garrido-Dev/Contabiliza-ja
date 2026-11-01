@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { migrateLegacyQuotes } from '../services/publicQuotes';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/layout/Layout';
 
@@ -20,10 +21,12 @@ export default function QuoteList() {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('todos');
+  const [migrationError, setMigrationError] = useState('');
 
   async function fetchQuotes() {
     if (!user) return;
     setLoading(true);
+    setMigrationError('');
     try {
       const q = query(
         collection(db, 'quotes'),
@@ -37,6 +40,14 @@ export default function QuoteList() {
         return tB - tA;
       });
       setQuotes(data);
+
+      try {
+        const migratedQuotes = await migrateLegacyQuotes(data, user.uid);
+        setQuotes(migratedQuotes);
+      } catch (migrationErr) {
+        console.error('Não foi possível migrar os links antigos para a coleção pública.', migrationErr);
+        setMigrationError('Não foi possível preparar os links públicos. Confira as regras do Firestore e tente novamente.');
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,7 +79,16 @@ export default function QuoteList() {
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      await deleteDoc(doc(db, 'quotes', id));
+      const quote = quotes.find(item => item.id === id);
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'quotes', id));
+
+      if (quote?.shareId) {
+        batch.delete(doc(db, 'publicQuotes', quote.shareId));
+        batch.delete(doc(db, 'quoteShares', quote.shareId));
+      }
+
+      await batch.commit();
       setQuotes(prev => prev.filter(q => q.id !== id));
     } catch (err) {
       console.error(err);
@@ -101,6 +121,15 @@ export default function QuoteList() {
           </button>
         ))}
       </div>
+
+      {migrationError && (
+        <div role="alert" className="card" style={{ marginBottom: 20, color: 'var(--red)' }}>
+          <p>{migrationError}</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={fetchQuotes}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="empty-state">
@@ -147,7 +176,7 @@ export default function QuoteList() {
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button
                           className="btn btn-ghost btn-sm"
-                          onClick={() => navigate(`/orcamento/${q.id}`)}
+                          onClick={() => navigate(`/orcamento/${q.shareId || q.id}`)}
                           title="Ver proposta do orçamento"
                         >
                           👁️ Ver

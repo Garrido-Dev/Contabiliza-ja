@@ -7,9 +7,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  collection, addDoc, serverTimestamp, getDocs, query, where,
+  collection, doc, writeBatch, serverTimestamp, getDocs, query, where,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { buildPublicQuote } from '../services/publicQuotes';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/layout/Layout';
 import WhatsAppPreview from '../components/WhatsAppPreview';
@@ -146,38 +147,66 @@ export default function QuoteForm() {
 
     setSubmitting(true);
     try {
-      const docRef = await addDoc(collection(db, 'quotes'), {
+      const quoteRef = doc(collection(db, 'quotes'));
+      const publicQuoteRef = doc(collection(db, 'publicQuotes'));
+      const shareId = publicQuoteRef.id;
+      const createdAt = serverTimestamp();
+      const quoteItems = items.map(it => ({
+        description: it.description.trim(),
+        qty: parseInt(it.qty) || 1,
+        unitPrice: parseFloat(it.unitPrice) || 0,
+      }));
+      const quoteData = {
         userId:        user.uid,
         clientId:      form.clientId || null,
+        shareId,
         clientName:    form.clientName.trim(),
         whatsapp:      form.whatsapp.replace(/\D/g, ''),
         type:          form.type,
         description:   form.description.trim(),
-        items:         items.map(it => ({
-          description: it.description.trim(),
-          qty:         parseInt(it.qty) || 1,
-          unitPrice:   parseFloat(it.unitPrice) || 0,
-        })),
+        items:         quoteItems,
         totalValue,
         deadline:      form.deadline || null,
         paymentTerms:  form.paymentTerms || null,
         status:        'pendente',
         paymentStatus: 'pendente',
-        createdAt:     serverTimestamp(),
-      });
+        createdAt,
+      };
 
-      // Salva anotações internas em subcoleção privada para nunca vazar na página pública do cliente
+      // O orçamento completo fica privado; a cópia pública recebe apenas os campos exibidos ao cliente.
+      const batch = writeBatch(db);
+      batch.set(quoteRef, quoteData);
+      batch.set(doc(db, 'quoteShares', shareId), {
+        userId: user.uid,
+        quoteId: quoteRef.id,
+      });
+      batch.set(publicQuoteRef, buildPublicQuote({
+        clientName: quoteData.clientName,
+        type: quoteData.type,
+        description: quoteData.description,
+        items: quoteData.items,
+        totalValue: quoteData.totalValue,
+        createdAt,
+        deadline: quoteData.deadline,
+        paymentTerms: quoteData.paymentTerms,
+        whatsapp: quoteData.whatsapp,
+      }));
+
       if (form.internalNotes.trim()) {
-        await addDoc(collection(db, 'quotes', docRef.id, 'privateNotes'), {
+        const noteRef = doc(collection(db, 'quotes', quoteRef.id, 'privateNotes'));
+        batch.set(noteRef, {
           userId:    user.uid,
           notes:     form.internalNotes.trim(),
-          createdAt: serverTimestamp(),
+          createdAt,
         });
       }
 
+      await batch.commit();
+
       // Monta objeto para exibir preview e PDF
       setCreated({
-        id:           docRef.id,
+        id:           quoteRef.id,
+        shareId,
         clientName:   form.clientName.trim(),
         whatsapp:     form.whatsapp.replace(/\D/g, ''),
         type:         form.type,
