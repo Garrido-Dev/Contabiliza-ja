@@ -57,6 +57,17 @@ export default function Financial() {
   // Hover state do gráfico
   const [hoveredMonth, setHoveredMonth] = useState(null);
 
+  function changePeriod(preset, month) {
+    setPeriodPreset(preset);
+    if (month !== undefined) setSelectedMonth(month);
+    setCurrentPage(1);
+  }
+
+  function changeClientFilter(name) {
+    setClientFilter(name);
+    setCurrentPage(1);
+  }
+
   useEffect(() => {
     async function fetchData() {
       if (!user) return;
@@ -133,9 +144,10 @@ export default function Financial() {
   }, [quotes, periodPreset, selectedMonth]);
 
   // ── 1. KPI Cards Expandidos ─────────────────────────────────
-  const { totalRecebido, totalPendente, totalGeral, ticketMedio, taxaInadimplencia, previsaoMes } = useMemo(() => {
+  const { totalRecebido, totalPendente, totalParcial, totalGeral, ticketMedio, taxaInadimplencia, previsaoMes } = useMemo(() => {
     let rec = 0;
     let pend = 0;
+    let parcial = 0;
     let total = 0;
     let countPagos = 0;
 
@@ -145,6 +157,8 @@ export default function Financial() {
       if (q.paymentStatus === 'pago') {
         rec += val;
         countPagos += 1;
+      } else if (q.paymentStatus === 'parcial') {
+        parcial += val;
       } else {
         pend += val;
       }
@@ -166,6 +180,7 @@ export default function Financial() {
     return {
       totalRecebido: rec,
       totalPendente: pend,
+      totalParcial: parcial,
       totalGeral: total,
       ticketMedio: tMedio,
       taxaInadimplencia: taxaInad,
@@ -185,10 +200,12 @@ export default function Financial() {
       const val = Number(q.totalValue || 0);
 
       if (!map[key]) {
-        map[key] = { key, label, paid: 0, pending: 0, total: 0 };
+        map[key] = { key, label, paid: 0, pending: 0, partial: 0, total: 0 };
       }
       if (q.paymentStatus === 'pago') {
         map[key].paid += val;
+      } else if (q.paymentStatus === 'parcial') {
+        map[key].partial += val;
       } else {
         map[key].pending += val;
       }
@@ -339,28 +356,28 @@ export default function Financial() {
               <button
                 type="button"
                 className={`filter-tab ${periodPreset === 'this_month' ? 'active' : ''}`}
-                onClick={() => setPeriodPreset('this_month')}
+                onClick={() => changePeriod('this_month')}
               >
                 Este Mês
               </button>
               <button
                 type="button"
                 className={`filter-tab ${periodPreset === 'last_3_months' ? 'active' : ''}`}
-                onClick={() => setPeriodPreset('last_3_months')}
+                onClick={() => changePeriod('last_3_months')}
               >
                 Últimos 3 Meses
               </button>
               <button
                 type="button"
                 className={`filter-tab ${periodPreset === 'this_year' ? 'active' : ''}`}
-                onClick={() => setPeriodPreset('this_year')}
+                onClick={() => changePeriod('this_year')}
               >
                 {new Date().getFullYear()}
               </button>
               <button
                 type="button"
                 className={`filter-tab ${periodPreset === 'all' ? 'active' : ''}`}
-                onClick={() => setPeriodPreset('all')}
+                onClick={() => changePeriod('all')}
               >
                 Todos
               </button>
@@ -371,8 +388,7 @@ export default function Financial() {
               value={periodPreset === 'custom_month' ? selectedMonth : ''}
               onChange={e => {
                 if (e.target.value) {
-                  setSelectedMonth(e.target.value);
-                  setPeriodPreset('custom_month');
+                  changePeriod('custom_month', e.target.value);
                 }
               }}
               style={{ width: 'auto', minWidth: 150, padding: '7px 12px', fontSize: 13 }}
@@ -410,7 +426,7 @@ export default function Financial() {
                 {fmt(totalPendente)}
               </div>
               <div className="stat-sub">
-                Aguardando quitação
+                {totalParcial > 0 ? `Parcial à parte: ${fmt(totalParcial)}` : 'Aguardando quitação'}
               </div>
             </div>
 
@@ -463,7 +479,7 @@ export default function Financial() {
                     <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--green)' }} /> Recebido
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--yellow)' }} /> Pendente
+                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--yellow)' }} /> Não quitado
                   </div>
                 </div>
               </div>
@@ -487,7 +503,8 @@ export default function Financial() {
                   }}>
                     {monthlySeries.map((m, idx) => {
                       const paidHeight = Math.max(Math.round((m.paid / maxBarValue) * 100), m.paid > 0 ? 6 : 0);
-                      const pendingHeight = Math.max(Math.round((m.pending / maxBarValue) * 100), m.pending > 0 ? 6 : 0);
+                      const openValue = m.pending + (m.partial || 0);
+                      const pendingHeight = Math.max(Math.round((openValue / maxBarValue) * 100), openValue > 0 ? 6 : 0);
                       const isHovered = hoveredMonth === idx;
 
                       return (
@@ -530,6 +547,11 @@ export default function Financial() {
                               <div style={{ color: 'var(--yellow)', display: 'flex', gap: 6 }}>
                                 <span>Pendente:</span> <strong>{fmt(m.pending)}</strong>
                               </div>
+                              {m.partial > 0 && (
+                                <div style={{ color: '#38bdf8', display: 'flex', gap: 6 }}>
+                                  <span>Parcial:</span> <strong>{fmt(m.partial)}</strong>
+                                </div>
+                              )}
                               <div style={{ color: 'var(--text-3)', fontSize: 10, marginTop: 4, borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                                 Total: {fmt(m.total)}
                               </div>
@@ -560,7 +582,7 @@ export default function Financial() {
                                 transition: 'height 0.3s ease, filter 0.2s',
                                 filter: isHovered ? 'brightness(1.2)' : 'none'
                               }}
-                              title={`Pendente: ${fmt(m.pending)}`}
+                              title={`Não quitado: ${fmt(m.pending + (m.partial || 0))}`}
                             />
                           </div>
 
@@ -723,7 +745,7 @@ export default function Financial() {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setClientFilter(null)}
+                    onClick={() => changeClientFilter(null)}
                     style={{ padding: '3px 8px', fontSize: 11 }}
                   >
                     ✕ Limpar Filtro
@@ -747,7 +769,7 @@ export default function Financial() {
                   return (
                     <div
                       key={c.name}
-                      onClick={() => setClientFilter(isSelected ? null : c.name)}
+                      onClick={() => changeClientFilter(isSelected ? null : c.name)}
                       style={{
                         background: isSelected ? 'var(--blue-subtle)' : 'var(--bg-3)',
                         border: isSelected ? '1px solid var(--blue)' : '1px solid var(--border)',

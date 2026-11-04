@@ -1,5 +1,6 @@
 // ============================================================
 // src/pages/PublicQuote.jsx
+// Visualização pública e aprovação da proposta pelo cliente.
 // ============================================================
 
 import { useEffect, useState } from 'react';
@@ -8,7 +9,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { generateQuotePDF } from '../services/pdfGenerator';
-import imglogo from "../assets/logo.contabilizaJa-branco.png"
+import imglogo from '../assets/logo.contabilizaJa-branco.png';
 
 function fmt(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -25,9 +26,11 @@ export default function PublicQuote() {
     async function fetchQuote() {
       try {
         const snap = await getDoc(doc(db, 'quotes', id));
-        const rawData = snap.data();
-        delete rawData.internalNotes; // Garante que notas privadas nunca fiquem na memória do cliente
-        setQuote({ id: snap.id, ...rawData });
+        if (snap.exists()) {
+          const rawData = snap.data();
+          delete rawData.internalNotes; // Garante que notas privadas nunca fiquem na memória do cliente
+          setQuote({ id: snap.id, ...rawData });
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -63,10 +66,27 @@ export default function PublicQuote() {
     );
   }
 
+  const emitter = quote.emitter || {};
+  const officeTitle = emitter.officeName || 'Contabiliza Já';
+  const logoSrc = emitter.logoUrl || imglogo;
+  const subtitle = [
+    emitter.fullName,
+    emitter.roleTitle,
+    emitter.crc,
+  ].filter(Boolean).join(' • ') || 'Proposta de Prestação de Serviços';
+
+  const approvalPhone = (emitter.phone || '').replace(/\D/g, '');
+  const cleanPhone = approvalPhone
+    ? (approvalPhone.length <= 11 && !approvalPhone.startsWith('55')
+      ? `55${approvalPhone}`
+      : approvalPhone)
+    : '';
+  const isEmitter = Boolean(user && quote.userId && user.uid === quote.userId);
+
   return (
     <div style={{ minHeight: '100vh', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 600 }}>
-        {/* Barra de retorno ao painel visível apenas para o contador autenticado */}
+      <div style={{ width: '100%', maxWidth: 640 }}>
+        {/* Barra de retorno ao painel visível apenas para o usuário emissor autenticado */}
         {user && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <button
@@ -77,13 +97,16 @@ export default function PublicQuote() {
             >
               ← Voltar para Consultorias
             </button>
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              Visualização de proposta (Contador)
-            </span>
+            {isEmitter && (
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                Visualização da Proposta (Emissor)
+              </span>
+            )}
           </div>
         )}
 
         <div className="card" style={{ marginBottom: 20 }}>
+          {/* Topo da Proposta com Dados da Empresa / Emissor */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -94,33 +117,45 @@ export default function PublicQuote() {
           }}>
             <div style={{
               background: '#ffffff',
-              padding: '10px 14px',
+              padding: '8px 12px',
               borderRadius: '10px',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-              flexShrink: 0
+              flexShrink: 0,
+              maxWidth: '120px',
+              maxHeight: '60px',
+              overflow: 'hidden'
             }}>
               <img
-                src={imglogo}
-                alt="Contabiliza Já"
-                style={{ width: '105px', height: 'auto', display: 'block' }}
+                src={logoSrc}
+                alt={officeTitle}
+                style={{ maxWidth: '100px', maxHeight: '50px', objectFit: 'contain', display: 'block' }}
               />
             </div>
             <div>
-              <h1 style={{ fontSize: 22, margin: 0, color: 'var(--text)', fontWeight: 800 }}>Contabiliza Já</h1>
-              <p style={{ color: 'var(--text-2)', margin: '4px 0 0 0', fontSize: 13 }}>Proposta de Prestação de Serviços Contábeis</p>
+              <h1 style={{ fontSize: 22, margin: 0, color: 'var(--text)', fontWeight: 800 }}>
+                {officeTitle}
+              </h1>
+              <p style={{ color: 'var(--text-2)', margin: '4px 0 0 0', fontSize: 13 }}>
+                {subtitle}
+              </p>
+              {(emitter.cnpj || emitter.phone) && (
+                <p style={{ color: 'var(--text-3)', margin: '4px 0 0 0', fontSize: 11 }}>
+                  {emitter.cnpj ? `CNPJ/CPF: ${emitter.cnpj}` : ''} {emitter.cnpj && emitter.phone ? '•' : ''} {emitter.phone ? `WhatsApp: ${emitter.phone}` : ''}
+                </p>
+              )}
             </div>
           </div>
           
           <div style={{ background: 'var(--bg-3)', padding: 16, borderRadius: 'var(--radius)', marginBottom: 24 }}>
-            <p><strong>Cliente:</strong> {quote.clientName}</p>
-            <p><strong>Serviço:</strong> {quote.type}</p>
-            <p><strong>Data:</strong> {quote.createdAt ? new Date(quote.createdAt.toDate()).toLocaleDateString() : '—'}</p>
+            <p style={{ marginBottom: 6 }}><strong>Cliente:</strong> {quote.clientName}</p>
+            <p style={{ marginBottom: 6 }}><strong>Serviço:</strong> {quote.type}</p>
+            <p style={{ margin: 0 }}><strong>Data:</strong> {quote.createdAt ? new Date(quote.createdAt.toDate ? quote.createdAt.toDate() : quote.createdAt).toLocaleDateString('pt-BR') : '—'}</p>
           </div>
 
-          <table style={{ marginBottom: 24 }}>
+          <table style={{ marginBottom: 24, width: '100%' }}>
             <thead>
               <tr>
                 <th>Descrição</th>
@@ -144,15 +179,26 @@ export default function PublicQuote() {
             <span style={{ fontSize: 28, fontWeight: 'bold', color: 'var(--blue)' }}>{fmt(quote.totalValue)}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <a
-              href={`https://api.whatsapp.com/send?phone=55${quote.whatsapp}&text=${encodeURIComponent(`Olá! Aprovo o orçamento referente a ${quote.type}.`)}`}
-              target="_blank" rel="noopener noreferrer"
-              className="btn btn-whatsapp btn-full"
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {cleanPhone ? (
+              <a
+                href={`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(`Olá! Aprovo a proposta referente a "${quote.type}" no valor de ${fmt(quote.totalValue)}.`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="btn btn-whatsapp btn-full"
+                style={{ flex: '1 1 200px' }}
+              >
+                Aprovar via WhatsApp
+              </a>
+            ) : (
+              <p style={{ flex: '1 1 200px', margin: 0, fontSize: 13, color: 'var(--text-3)' }}>
+                O escritório ainda não informou um WhatsApp para receber a aprovação.
+              </p>
+            )}
+            <button
+              className="btn btn-ghost btn-full"
+              style={{ flex: '1 1 140px' }}
+              onClick={() => generateQuotePDF(quote, null, quote.emitter)}
             >
-              Aprovar via WhatsApp
-            </a>
-            <button className="btn btn-ghost btn-full" onClick={() => generateQuotePDF(quote, null)}>
               Baixar PDF
             </button>
           </div>

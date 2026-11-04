@@ -67,15 +67,20 @@ export default function ClientDetailModal({
   if (!client) return null;
 
   // Filtra as consultorias pertencentes a este cliente
-  const clientQuotes = quotes.filter(q => 
-    (q.clientId && q.clientId === client.id) ||
-    (q.clientName && client.name && q.clientName.trim().toLowerCase() === client.name.trim().toLowerCase())
-  );
+  const clientQuotes = quotes.filter(q => {
+    if (q.clientId) return q.clientId === client.id;
+    const qName = q.clientName?.trim().toLowerCase();
+    const cName = client.name?.trim().toLowerCase();
+    return Boolean(qName && cName && qName === cName);
+  });
 
   // Cálculos financeiros
   const totalFaturado = clientQuotes.reduce((acc, q) => acc + (Number(q.totalValue) || 0), 0);
   const totalPago = clientQuotes
     .filter(q => q.paymentStatus === 'pago')
+    .reduce((acc, q) => acc + (Number(q.totalValue) || 0), 0);
+  const totalParcial = clientQuotes
+    .filter(q => q.paymentStatus === 'parcial')
     .reduce((acc, q) => acc + (Number(q.totalValue) || 0), 0);
   const totalPendente = clientQuotes
     .filter(q => q.paymentStatus === 'pendente' || !q.paymentStatus)
@@ -520,6 +525,9 @@ export default function ClientDetailModal({
                 <div className="stat-value" style={{ color: 'var(--yellow)', fontSize: 20 }}>
                   {fmt(totalPendente)}
                 </div>
+                {totalParcial > 0 && (
+                  <div className="stat-sub">Parcial: {fmt(totalParcial)}</div>
+                )}
               </div>
               <div className="stat-card" style={{ padding: 14 }}>
                 <div className="stat-label">Ticket Médio</div>

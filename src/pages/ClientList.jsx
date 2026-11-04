@@ -39,7 +39,7 @@ export default function ClientList() {
         );
         const clientsSnap = await getDocs(qClients);
         const clientsData = clientsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        clientsData.sort((a, b) => a.name.localeCompare(b.name));
+        clientsData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setClients(clientsData);
 
         // Carrega consultorias para cruzar financeiro e métricas
@@ -90,29 +90,31 @@ export default function ClientList() {
   const clientFinancialMap = useMemo(() => {
     const map = {};
     quotes.forEach(q => {
-      const cId = q.clientId;
-      const cName = q.clientName?.trim().toLowerCase();
       const val = Number(q.totalValue || 0);
-
-      if (cId) {
-        if (!map[cId]) map[cId] = { total: 0, count: 0 };
-        map[cId].total += val;
-        map[cId].count += 1;
+      if (q.clientId) {
+        if (!map[q.clientId]) map[q.clientId] = { total: 0, count: 0 };
+        map[q.clientId].total += val;
+        map[q.clientId].count += 1;
+        return;
       }
-      if (cName) {
-        if (!map[cName]) map[cName] = { total: 0, count: 0 };
-        map[cName].total += val;
-        map[cName].count += 1;
-      }
+      const cName = q.clientName?.trim().toLowerCase();
+      if (!cName) return;
+      const key = `name:${cName}`;
+      if (!map[key]) map[key] = { total: 0, count: 0 };
+      map[key].total += val;
+      map[key].count += 1;
     });
     return map;
   }, [quotes]);
 
   function getClientStats(client) {
-    const byId = clientFinancialMap[client.id];
-    if (byId) return byId;
-    const byName = client.name ? clientFinancialMap[client.name.trim().toLowerCase()] : null;
-    return byName || { total: 0, count: 0 };
+    const byId = clientFinancialMap[client.id] || { total: 0, count: 0 };
+    const nameKey = client.name ? `name:${client.name.trim().toLowerCase()}` : null;
+    const byName = nameKey ? clientFinancialMap[nameKey] : null;
+    return {
+      total: byId.total + (byName?.total || 0),
+      count: byId.count + (byName?.count || 0),
+    };
   }
 
   function handleOpenClient(client, tab = 'info', edit = false) {
