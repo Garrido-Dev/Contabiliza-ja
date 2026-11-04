@@ -1,7 +1,7 @@
 // ============================================================
 // src/services/pdfGenerator.js
 // Geração de PDF profissional com jsPDF + jspdf-autotable.
-// Exporta: generateQuotePDF(quote, client)
+// Exporta: buildQuotePDFDoc, generateQuotePDF, getQuotePDFBlob
 // ============================================================
 
 import { jsPDF } from 'jspdf';
@@ -19,10 +19,18 @@ function fmtDate(ts) {
   return d.toLocaleDateString('pt-BR');
 }
 
-export function generateQuotePDF(quote, client) {
+export function buildQuotePDFDoc(quote, client = null, profile = null) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const margin = 20;
+
+  const emitter = profile || quote?.emitter || {};
+  const officeName = emitter.officeName || 'Contabiliza Já';
+  const professionalInfo = [
+    emitter.fullName,
+    emitter.roleTitle,
+    emitter.crc ? (emitter.crc.includes(':') ? emitter.crc : `Reg.: ${emitter.crc}`) : '',
+  ].filter(Boolean).join(' • ') || 'Prestação de Serviços & Consultoria';
 
   // ── Cores corporativas ────────────────────────────────────
   const DARK  = [17, 24, 39];     // #111827
@@ -31,56 +39,124 @@ export function generateQuotePDF(quote, client) {
   const LGRAY = [241, 245, 249];  // fundo linhas da tabela
 
   // ── Cabeçalho ─────────────────────────────────────────────
+  const headerHeight = 44;
   doc.setFillColor(...BLUE);
-  doc.rect(0, 0, W, 42, 'F');
+  doc.rect(0, 0, W, headerHeight, 'F');
 
   let textStartX = margin;
-  try {
-    const logoFullImg = document.querySelector('img[src="/logo-full.png"]') || document.querySelector('img[src="/logo.png"]');
-    if (logoFullImg && logoFullImg.complete) {
+  let customLogoDrawn = false;
+
+  // 1. Tenta carregar logotipo personalizado do perfil
+  if (emitter.logoUrl) {
+    try {
+      const format = emitter.logoUrl.includes('image/jpeg') || emitter.logoUrl.includes('image/jpg') ? 'JPEG' : 'PNG';
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(margin, 8, 34, 25, 3, 3, 'F');
-      doc.addImage(logoFullImg, 'PNG', margin + 3, 9.5, 28, 22);
-      textStartX = margin + 40;
+      doc.roundedRect(margin, 7, 34, 28, 3, 3, 'F');
+      doc.addImage(emitter.logoUrl, format, margin + 2, 8.5, 30, 25);
+      textStartX = margin + 38;
+      customLogoDrawn = true;
+    } catch (e) {
+      console.warn('Não foi possível renderizar imagem do logotipo personalizado no PDF:', e);
     }
-  } catch (e) {
-    // fallback
   }
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Contabiliza Já', textStartX, 18);
+  // 2. Se não tem logotipo customizado, busca logo da aplicação no DOM
+  if (!customLogoDrawn) {
+    try {
+      const logoFullImg = document.querySelector('img[src*="logo"]') || document.querySelector('img[alt="Contabiliza Já"]');
+      if (logoFullImg && logoFullImg.complete && logoFullImg.naturalWidth > 0) {
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(margin, 7, 34, 28, 3, 3, 'F');
+        doc.addImage(logoFullImg, 'PNG', margin + 3, 9.5, 28, 23);
+        textStartX = margin + 38;
+      }
+    } catch {
+      // fallback silencioso
+    }
+  }
 
+  // Nome da Empresa / Escritório
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(officeName.length > 25 ? 16 : 19);
+  doc.setFont('helvetica', 'bold');
+  doc.text(officeName, textStartX, 16);
+
+  // Subtítulo / Responsável
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Gestão de Consultorias Contábeis', textStartX, 26);
+  doc.text(professionalInfo, textStartX, 23);
 
-  // Número e status do orçamento
+  // Contatos da Empresa no Cabeçalho
+  const contactParts = [
+    emitter.cnpj ? `CNPJ/CPF: ${emitter.cnpj}` : '',
+    emitter.phone ? `WhatsApp: ${emitter.phone}` : '',
+    emitter.email ? emitter.email : '',
+  ].filter(Boolean).join(' • ');
+
+  if (contactParts) {
+    doc.setFontSize(8);
+    doc.text(contactParts, textStartX, 30);
+  }
+
+  // Número e status do orçamento (lado direito)
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`ORÇAMENTO Nº ${quote.id?.substring(0, 8).toUpperCase() ?? '—'}`, W - margin, 18, { align: 'right' });
+  doc.text(`ORÇAMENTO Nº ${quote.id?.substring(0, 8).toUpperCase() ?? '—'}`, W - margin, 16, { align: 'right' });
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Emitido em: ${fmtDate(quote.createdAt)}`, W - margin, 26, { align: 'right' });
+  doc.text(`Emitido em: ${fmtDate(quote.createdAt)}`, W - margin, 23, { align: 'right' });
 
   const STATUS_LABEL = { pendente: 'PENDENTE', em_andamento: 'EM ANDAMENTO', concluido: 'CONCLUÍDO' };
-  doc.text(`Status: ${STATUS_LABEL[quote.status] ?? quote.status?.toUpperCase()}`, W - margin, 33, { align: 'right' });
+  doc.text(`Status: ${STATUS_LABEL[quote.status] ?? quote.status?.toUpperCase() ?? 'PENDENTE'}`, W - margin, 29, { align: 'right' });
+
+  let y = headerHeight + 12;
+
+  // ── Dados da Empresa Emissora / Prestador de Serviços ──
+  if (emitter.address || emitter.website) {
+    doc.setTextColor(...DARK);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EMPRESA EMISSORA / PRESTADOR DE SERVIÇOS', margin, y);
+
+    y += 5;
+    doc.setDrawColor(...BLUE);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, W - margin, y);
+
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+
+    if (emitter.address) {
+      doc.text('Endereço:', margin, y);
+      doc.setTextColor(...DARK);
+      doc.text(emitter.address, margin + 25, y);
+    }
+
+    if (emitter.website) {
+      doc.setTextColor(...GRAY);
+      doc.text('Website:', W / 2, y);
+      doc.setTextColor(...DARK);
+      doc.text(emitter.website, W / 2 + 20, y);
+    }
+
+    y += 10;
+  }
 
   // ── Dados do cliente ───────────────────────────────────────
-  let y = 54;
   doc.setTextColor(...DARK);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('DADOS DO CLIENTE', margin, y);
 
-  y += 6;
+  y += 5;
   doc.setDrawColor(...BLUE);
   doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
 
-  y += 7;
+  y += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
@@ -88,7 +164,7 @@ export function generateQuotePDF(quote, client) {
   const clientName = client?.name ?? quote.clientName ?? '—';
   const clientDoc  = client?.document ?? '—';
   const clientWa   = quote.whatsapp ?? client?.whatsapp ?? '—';
-  const clientEmail= client?.email ?? '—';
+  const clientEmail= quote.clientEmail ?? client?.email ?? '—';
 
   doc.text(`Nome:`, margin, y);
   doc.setTextColor(...DARK);
@@ -111,15 +187,15 @@ export function generateQuotePDF(quote, client) {
   doc.text(clientEmail, W / 2 + 22, y);
 
   // ── Detalhes do serviço ────────────────────────────────────
-  y += 14;
+  y += 12;
   doc.setTextColor(...DARK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('DETALHES DO SERVIÇO', margin, y);
-  y += 6;
+  y += 5;
   doc.setDrawColor(...BLUE);
   doc.line(margin, y, W - margin, y);
-  y += 7;
+  y += 6;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
@@ -140,16 +216,15 @@ export function generateQuotePDF(quote, client) {
   doc.text(quote.paymentTerms ?? '—', W / 2 + 35, y);
 
   // ── Tabela de itens ────────────────────────────────────────
-  y += 14;
+  y += 12;
   doc.setTextColor(...DARK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('ITENS DO ORÇAMENTO', margin, y);
-  y += 3;
+  y += 2;
 
   const items = quote.items ?? [];
   
-  // Chamada correta do autoTable passando a instância 'doc'
   autoTable(doc, {
     startY: y + 4,
     margin: { left: margin, right: margin },
@@ -186,13 +261,13 @@ export function generateQuotePDF(quote, client) {
   doc.setTextColor(...DARK);
   doc.text('TOTAL:', W - margin - 55, afterTable + 5);
   
-  doc.setTextColor(...BLUE); // Corrigido aqui
+  doc.setTextColor(...BLUE);
   doc.setFontSize(12);
   doc.text(fmt(quote.totalValue), W - margin - 4, afterTable + 5, { align: 'right' });
 
   // ── Observações ────────────────────────────────────────────
   if (quote.description) {
-    const obsY = afterTable + 22;
+    const obsY = afterTable + 20;
     doc.setTextColor(...DARK);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -210,9 +285,23 @@ export function generateQuotePDF(quote, client) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('Contabiliza Já — Gestão de Consultorias Contábeis', margin, pageH - 5);
+  
+  const footerEmitter = `${officeName}${emitter.phone ? ` • Tel: ${emitter.phone}` : ''}${emitter.email ? ` • ${emitter.email}` : ''}`;
+  doc.text(footerEmitter, margin, pageH - 5);
   doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, W - margin, pageH - 5, { align: 'right' });
 
-  // Salva o arquivo
-  doc.save(`orcamento_${quote.id?.substring(0, 8) ?? 'novo'}.pdf`);
+  const filename = `orcamento_${quote.id?.substring(0, 8) ?? 'novo'}.pdf`;
+  return { doc, filename };
+}
+
+export function generateQuotePDF(quote, client = null, profile = null) {
+  const { doc, filename } = buildQuotePDFDoc(quote, client, profile);
+  doc.save(filename);
+}
+
+export function getQuotePDFBlob(quote, client = null, profile = null) {
+  const { doc, filename } = buildQuotePDFDoc(quote, client, profile);
+  const blob = doc.output('blob');
+  const file = new File([blob], filename, { type: 'application/pdf' });
+  return { doc, blob, file, filename };
 }
