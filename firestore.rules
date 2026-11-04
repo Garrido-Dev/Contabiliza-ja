@@ -12,6 +12,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 
+    // ── Coleção de Usuários / Perfil do Contador ─────────────
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     // ── Coleção de Clientes ──────────────────────────────────
     match /clients/{clientId} {
       allow read, update, delete: if isDocOwner();
@@ -36,12 +41,6 @@ service cloud.firestore {
         allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
         allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
       }
-    }
-
-    // ── Coleção de Documentos GED ────────────────────────────
-    match /documents/{docId} {
-      allow read, update, delete: if isDocOwner();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
     // ── Coleção de Obrigações Fiscais ────────────────────────

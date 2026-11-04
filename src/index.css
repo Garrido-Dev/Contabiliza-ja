@@ -203,12 +203,32 @@ textarea { resize: vertical; min-height: 80px; }
 .user-name  { font-size: 13px; font-weight: 600; color: var(--text); }
 .user-email { font-size: 11px; color: var(--text-3); }
 
-/* Conteúdo principal */
-.main-content {
+/* Conteúdo principal e Topbar do Dashboard */
+.main-wrapper {
   margin-left: var(--sidebar-w);
   flex: 1;
-  padding: 32px;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  min-width: 0;
+}
+.app-topbar {
+  height: 60px;
+  background: rgba(22, 27, 39, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.main-content {
+  flex: 1;
+  padding: 32px;
 }
 .page-header {
   margin-bottom: 28px;
@@ -410,8 +430,10 @@ tr:hover td { background: var(--bg-3); }
   .app-shell     { flex-direction: column; }
   .mobile-header { display: flex; }
   .sidebar       { display: none; }
+  .app-topbar    { display: none; }
+  .main-wrapper  { margin-left: 0; }
   .bottom-nav    { display: block; }
-  .main-content  { margin-left: 0; padding: 16px 16px 80px; }
+  .main-content  { padding: 16px 16px 80px; }
   .form-grid     { grid-template-columns: 1fr; }
   .stat-grid     { grid-template-columns: 1fr 1fr; }
   .header-row    { flex-direction: column; align-items: flex-start; }
