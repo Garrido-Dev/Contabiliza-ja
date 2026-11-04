@@ -14,7 +14,7 @@ function fmt(v) {
 // Monta a mensagem padrão baseada no orçamento
 function buildMessage(quote) {
   const origin = window.location.origin;
-  const publicUrl = `${origin}/orcamento/${quote.id}`;
+  const publicUrl = `${origin}/orcamento/${quote.shareId || quote.id}`;
 
   const itemsText = (quote.items ?? [])
     .map(it => `  • ${it.description} (${it.qty}x ${fmt(it.unitPrice)})`)
