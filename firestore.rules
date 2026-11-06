@@ -65,6 +65,11 @@ service cloud.firestore {
         && request.resource.data.whatsapp is string;
     }
 
+    // Perfil privado; cada usuário só pode acessar o próprio documento.
+    match /users/{userId} {
+      allow get, create, update: if isOwner(userId);
+    }
+
     // ── Coleção de Clientes ──────────────────────────────────
     match /clients/{clientId} {
       allow read, delete: if isDocOwner();
