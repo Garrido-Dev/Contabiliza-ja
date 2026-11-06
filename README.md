@@ -16,11 +16,11 @@ O **Contabiliza Já** resolve a desorganização de controlar orçamentos, entre
 
 | 📋 Gestão de Consultorias | 📈 Dashboard Financeiro |
 | :---: | :---: |
-| ![Tela de Consultorias](src/assets/consultorias.png) | ![Dashboard Financeiro](src/assets/financeiro.png) |
+| ![Tela de Consultorias](./src/assets/consultorias.png) | ![Dashboard Financeiro](src/assets/financeiro.png) |
 
 | 👥 Carteira de Clientes | Calendário |
 | :---: | :---: |
-| ![Gestão de Clientes](src/assets/clientes.png) | ![Calendario](src/assets/calendario.png) |
+| ![Gestão de Clientes](./src/assets/clientes.png) | ![Calendario](src/assets/calendario.png) |
 
 ---
 
