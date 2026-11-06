@@ -24,10 +24,12 @@ export function buildPublicQuote(quote) {
 export async function migrateLegacyQuotes(quotes, userId) {
   const legacyQuotes = quotes.filter(quote => !quote.shareId);
 
-  // Three writes per quote; keep batches comfortably below Firestore's 500-write limit.
-  for (let offset = 0; offset < legacyQuotes.length; offset += 150) {
+  // Rules read the quote and share mapping for each migration; keep batches below
+  // Firestore's 20 security-rule document access calls per atomic operation.
+  const batchSize = 5;
+  for (let offset = 0; offset < legacyQuotes.length; offset += batchSize) {
     const batch = writeBatch(db);
-    const chunk = legacyQuotes.slice(offset, offset + 150);
+    const chunk = legacyQuotes.slice(offset, offset + batchSize);
 
     for (const quote of chunk) {
       // Old WhatsApp links used the quote ID. Reuse it so those URLs keep working.
