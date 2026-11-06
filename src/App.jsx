@@ -12,6 +12,7 @@ import QuoteForm from './pages/QuoteForm';
 import ClientList from './pages/ClientList';
 import ClientForm from './pages/ClientForm';
 import Financial from './pages/Financial';
+import Documents from './pages/Documents';
 import Obligations from './pages/Obligations';
 import PublicQuote from './pages/PublicQuote';
 import Settings from './pages/Settings';
@@ -32,10 +33,8 @@ export default function App() {
           <Route path="/clientes/novo" element={<ProtectedRoute><ClientForm /></ProtectedRoute>} />
           
           <Route path="/financeiro" element={<ProtectedRoute><Financial /></ProtectedRoute>} />
+          <Route path="/documentos" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
           <Route path="/obrigacoes" element={<ProtectedRoute><Obligations /></ProtectedRoute>} />
-          
-          {/* Módulo de Documentos (GED) removido; redirecionamento seguro */}
-          <Route path="/documentos" element={<Navigate to="/consultorias" replace />} />
 
           {/* Módulo de Configurações e Perfil */}
           <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
